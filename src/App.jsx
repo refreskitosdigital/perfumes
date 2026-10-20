@@ -10,19 +10,31 @@ import Inventario from './pages/Inventario.jsx'
 import Caja from './pages/Caja.jsx'
 import PorCobrar from './pages/PorCobrar.jsx'
 import Tasas from './pages/Tasas.jsx'
+import Clientes from './pages/Clientes.jsx'
+import Pagos from './pages/Pagos.jsx'
 
 const Ctx = createContext(null)
 export const useApp = () => useContext(Ctx)
 
+// [id, icono, nombre, qué se hace aquí, página]
 const TABS = [
-  ['dashboard', 'Dashboard', Dashboard],
-  ['agenda', 'Agenda', Agenda],
-  ['compras', 'Compras', Compras],
-  ['ventas', 'Ventas', Ventas],
-  ['cobrar', 'Por cobrar', PorCobrar],
-  ['inventario', 'Inventario', Inventario],
-  ['caja', 'Caja', Caja],
-  ['tasas', 'Tasas', Tasas],
+  ['dashboard', '🏠', 'Inicio', 'Cómo va el negocio hoy: plata, deudas y ganancias.', Dashboard],
+  ['agenda', '🗓️', 'Agenda de pedidos', 'Planea lo que vas a comprar y, cuando se compre, pulsa Realizar pedido.', Agenda],
+  ['compras', '📥', 'Compras', 'Historial de lo que ya se compró a los proveedores.', Compras],
+  ['ventas', '🛍️', 'Ventas', 'Anota cada venta y lo que el cliente paga.', Ventas],
+  ['clientes', '👥', 'Clientes', 'Quién compra, cuánto, cuánto debe y quiénes son los mejores.', Clientes],
+  ['cobrar', '💵', 'Por cobrar', 'Lo que los clientes todavía nos deben.', PorCobrar],
+  ['inventario', '📦', 'Inventario', 'Qué perfumes hay, cuáles se acaban y cuánto ganamos con cada uno.', Inventario],
+  ['caja', '🏦', 'Caja', 'El dinero que tenemos, en cada cuenta.', Caja],
+  ['pagos', '🧾', 'Pagos', 'Lo que pagamos a proveedores y lo que devolvemos de los préstamos.', Pagos],
+  ['tasas', '💱', 'Tasa del día', 'El dólar BCV y Binance de hoy. Hay que ponerla antes de vender.', Tasas],
+]
+const GRUPOS = [
+  ['', ['dashboard']],
+  ['Comprar', ['agenda', 'compras']],
+  ['Vender', ['ventas', 'clientes', 'cobrar']],
+  ['Dinero', ['caja', 'pagos', 'tasas']],
+  ['Productos', ['inventario']],
 ]
 
 function Login() {
@@ -38,7 +50,7 @@ function Login() {
   return (
     <main className="login">
       <form onSubmit={entrar}>
-        <h1>Control de Perfumes</h1>
+        <h1>🌸 Control de Perfumes</h1>
         <p className="ayuda">Acceso solo para los socios.</p>
         {!configurado && <div className="aviso error">Faltan las claves de Supabase (ver README, paso 4).</div>}
         <label className="campo"><span>Correo</span><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
@@ -62,7 +74,8 @@ function Shell({ session }) {
   const config = cfg.data[0] || { ganancia_objetivo: 0.3, redondeo: 0.5, umbral_mayor: 6, base_ganancia: 'costo' }
   const nombresSocios = socio.data.map((x) => x.nombre).sort()
   const valor = { socios: nombresSocios, tasa, tasas, config, perfumes, miSocio, recargarTasas: tasas.recargar, recargarPerfumes: perfumes.recargar }
-  const Pagina = TABS.find((t) => t[0] === tab)[2]
+  const actual = TABS.find((t) => t[0] === tab)
+  const Pagina = actual[4]
 
   if (!socio.cargando && !miSocio) {
     return (
@@ -78,20 +91,36 @@ function Shell({ session }) {
     <Ctx.Provider value={valor}>
       <div className="app">
         <header className="barra">
-          <div className="marca">Perfumes <span>{nombresSocios.join(' · ')}</span></div>
-          <div className="tasa-pill">
-            {tasa ? (
-              <>BCV {tasa.bcv} · Binance {tasa.binance} · Desc. máx {pct(descuentoMax(tasa.bcv, tasa.binance))} · ×{factor(tasa.bcv, tasa.binance).toFixed(4)}</>
-            ) : 'Registra la tasa de hoy'}
+          <div className="marca">🌸 Perfumes <span>{nombresSocios.join(' · ')}</span></div>
+          <div className="tasa-pill" title="Con esta tasa se calculan los precios y los Bs">
+            {tasa ? <>Tasa de hoy · BCV <b>{tasa.bcv}</b> · Binance <b>{tasa.binance}</b></> : <button className="link" onClick={() => setTab('tasas')}>⚠️ Falta la tasa de hoy</button>}
           </div>
-          <div className="usuario">{miSocio?.nombre} <button onClick={() => supabase.auth.signOut()}>Salir</button></div>
+          <div className="usuario">👤 {miSocio?.nombre} <button onClick={() => supabase.auth.signOut()}>Salir</button></div>
         </header>
-        <nav className="tabs">
-          {TABS.map(([k, t]) => (
-            <button key={k} className={k === tab ? 'activa' : ''} onClick={() => setTab(k)}>{t}</button>
-          ))}
-        </nav>
-        <main className="contenido"><Pagina /></main>
+        <div className="cuerpo">
+          <nav className="menu" aria-label="Menú principal">
+            {GRUPOS.map(([titulo, ids]) => (
+              <div className="grupo" key={titulo || 'inicio'}>
+                {titulo && <div className="grupo-titulo">{titulo}</div>}
+                {ids.map((id) => {
+                  const t = TABS.find((x) => x[0] === id)
+                  return (
+                    <button key={id} className={id === tab ? 'activa' : ''} onClick={() => { setTab(id); window.scrollTo({ top: 0 }) }}>
+                      <span className="icono" aria-hidden="true">{t[1]}</span><span className="nombre">{t[2]}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
+          </nav>
+          <main className="contenido">
+            <div className="titulo-pagina">
+              <h1>{actual[1]} {actual[2]}</h1>
+              <p>{actual[3]}</p>
+            </div>
+            <Pagina />
+          </main>
+        </div>
       </div>
     </Ctx.Provider>
   )

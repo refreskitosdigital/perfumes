@@ -12,7 +12,8 @@ Reparto de ganancias 50/50. Datos en Supabase, código en GitHub, publicada en N
 4. En **Authentication > Sign In / Providers**, desactiva *Allow new users to sign up* (así nadie más puede registrarse).
 5. En el **SQL Editor**, nueva consulta: pega y ejecuta `supabase/seed_pedidos_1_2.sql` (carga los pedidos 1 y 2 con sus ventas, cobros pendientes y el préstamo).
 6. Luego ejecuta `supabase/seed_pedido_3.sql`: carga el pedido 3 (3 socios en partes iguales), los préstamos de REFRESKITO Digital y los correos de acceso de Juan, George y Rosanny.
-7. En **Project Settings > API** copia dos datos: **Project URL** y la clave **anon public**.
+7. Por último ejecuta `supabase/migracion_v3.sql` (clientes, pagos y el botón Realizar pedido). Es seguro repetirla.
+8. En **Project Settings > API** copia dos datos: **Project URL** y la clave **anon public**.
 
 ### 2. GitHub (el código)
 1. Crea un repositorio nuevo **privado** en https://github.com (ej. `control-perfumes`).

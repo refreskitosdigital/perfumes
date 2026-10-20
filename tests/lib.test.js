@@ -30,3 +30,15 @@ test('valor real de la venta y cobros en Bs', () => {
   assert.ok(Math.abs(valorVenta('bcv', 36, 881, 1015) - cobrado - 15.6237) < 1e-3) // lo que debe
   assert.equal(cobradoUsd({ efectivo: 20, binance: 5 }, 1015), 25)
 })
+
+import { normNombre, waLink, cajaUsd } from '../src/lib.js'
+test('agrupa clientes sin importar tildes ni mayúsculas', () => {
+  assert.equal(normNombre('  María  Fernanda '), normNombre('maria fernanda'))
+})
+test('enlace de WhatsApp venezolano', () => {
+  assert.equal(waLink('0414-1234567'), 'https://wa.me/584141234567')
+  assert.equal(waLink(''), null)
+})
+test('caja en dólares valora los Bs a Binance', () => {
+  assert.equal(cajaUsd([{ cuenta: 'binance', saldo: 10 }, { cuenta: 'bs', saldo: 1015 }], 1015), 11)
+})

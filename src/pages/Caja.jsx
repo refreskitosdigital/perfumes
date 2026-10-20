@@ -9,6 +9,7 @@ export default function Caja() {
   const mov = useQuery(() => supabase.from('movimientos').select('*').order('fecha', { ascending: false }).order('id', { ascending: false }), [])
   const [f, setF] = useState({ fecha: hoy(), cuenta: 'binance', tipo: 'sale', monto: '', nota: '' })
   const [error, setError] = useState('')
+  const pre = useQuery(() => supabase.from('prestamos').select('*').order('fecha', { ascending: false }), [])
   const saldo = (c) => num(caja.data.find((x) => x.cuenta === c)?.saldo)
 
   const guardar = async (e) => {
@@ -19,21 +20,7 @@ export default function Caja() {
     if (!error) { setF({ ...f, monto: '', nota: '' }); caja.recargar(); mov.recargar() }
   }
 
-  const pre = useQuery(() => supabase.from('prestamos').select('*').order('fecha', { ascending: false }), [])
-  const [p, setP] = useState({ prestamo: '', cuenta: 'efectivo', monto: '' })
-  const [pmsg, setPmsg] = useState('')
-  const devolver = async (e) => {
-    e.preventDefault()
-    const pr = pre.data.find((x) => String(x.id) === String(p.prestamo))
-    if (!pr) return
-    const m = Number(p.monto)
-    if (m > Number(pr.monto) - Number(pr.devuelto) + 0.001) return setPmsg('Es más de lo que se debe.')
-    const a = await supabase.from('movimientos').insert({ fecha: hoy(), cuenta: p.cuenta, monto: -m, nota: 'Devolución de préstamo: ' + pr.descripcion })
-    if (a.error) return setPmsg(a.error.message)
-    const b = await supabase.from('prestamos').update({ devuelto: Number(pr.devuelto) + m }).eq('id', pr.id)
-    setPmsg(b.error ? b.error.message : 'Devolución registrada.')
-    setP({ ...p, monto: '' }); pre.recargar(); caja.recargar(); mov.recargar()
-  }
+  
 
   return (
     <>
@@ -68,29 +55,14 @@ export default function Caja() {
           { k: 'nota', t: 'Nota' },
         ]} />
       </Seccion>
-      <Seccion titulo="Préstamos" ayuda="Dinero prestado para pagar pedidos. Al devolver, sale de la cuenta elegida.">
+      <Seccion titulo="Préstamos" ayuda="Dinero que nos prestaron para pagar pedidos.">
         <Tabla filas={pre.data} vacio="Sin préstamos." cols={[
           { k: 'fecha', t: 'Fecha' }, { k: 'descripcion', t: 'Descripción' }, { k: 'prestamista', t: 'Prestamista', f: (r) => r.prestamista || 'por definir' },
           { k: 'monto', t: 'Monto', num: true, f: (r) => usd(r.monto) },
           { k: 'devuelto', t: 'Devuelto', num: true, f: (r) => usd(r.devuelto) },
           { k: 'debe', t: 'Debe', num: true, f: (r) => <b className={r.monto - r.devuelto > 0 ? 'alerta' : ''}>{usd(r.monto - r.devuelto)}</b> },
         ]} />
-        <form className="form" onSubmit={devolver}>
-          <Campo label="Préstamo">
-            <select value={p.prestamo} onChange={(e) => setP({ ...p, prestamo: e.target.value })} required>
-              <option value="">Elegir…</option>
-              {pre.data.filter((x) => x.monto > x.devuelto).map((x) => <option key={x.id} value={x.id}>{x.descripcion.slice(0, 40)}</option>)}
-            </select>
-          </Campo>
-          <Campo label="Pagar desde">
-            <select value={p.cuenta} onChange={(e) => setP({ ...p, cuenta: e.target.value })}>
-              <option value="binance">Binance ($)</option><option value="efectivo">Efectivo ($)</option><option value="bs">Bolívares (Bs)</option>
-            </select>
-          </Campo>
-          <Campo label="Monto devuelto"><input type="number" step="0.01" min="0" value={p.monto} onChange={(e) => setP({ ...p, monto: e.target.value })} required /></Campo>
-          <button className="primario" type="submit">Registrar devolución</button>
-        </form>
-        {pmsg && <Aviso ok={pmsg} />}
+        <p className="ayuda">Para devolver un préstamo ve a <b>Pagos</b>: ahí queda registrado quién pagó y desde qué cuenta.</p>
       </Seccion>
     </>
   )

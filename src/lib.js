@@ -45,3 +45,23 @@ export const usd = (v) => '$' + num(v).toLocaleString('es-VE', { minimumFraction
 export const bs = (v) => 'Bs ' + num(v).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 export const pct = (v) => (v == null ? '—' : (num(v) * 100).toLocaleString('es-VE', { maximumFractionDigits: 1 }) + ' %')
 export const hoy = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Caracas' })
+
+// Normaliza un nombre para agrupar clientes (sin tildes, sin mayúsculas, sin espacios dobles)
+export const normNombre = (s) =>
+  String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()
+
+// Enlace de WhatsApp (teléfonos venezolanos: 0414… -> 58414…)
+export function waLink(tel, texto = '') {
+  let d = String(tel || '').replace(/\D/g, '')
+  if (!d) return null
+  if (d.startsWith('00')) d = d.slice(2)
+  if (d.startsWith('0')) d = '58' + d.slice(1)
+  else if (d.length === 10) d = '58' + d
+  return 'https://wa.me/' + d + (texto ? '?text=' + encodeURIComponent(texto) : '')
+}
+
+// Valor en $ de lo que hay en caja (los Bs se valoran a Binance)
+export const cajaUsd = (filas, tasaBinance) => {
+  const s = (c) => num(filas.find((x) => x.cuenta === c)?.saldo)
+  return s('binance') + s('efectivo') + (num(tasaBinance) > 0 ? s('bs') / num(tasaBinance) : 0)
+}

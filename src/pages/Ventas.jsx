@@ -13,6 +13,7 @@ const vacia = (vendedor) => ({
 export default function Ventas() {
   const { perfumes, tasa, config, miSocio, socios } = useApp()
   const ventas = useQuery(() => supabase.from('ventas_v').select('*').order('fecha', { ascending: false }).order('id', { ascending: false }).limit(300), [])
+  const clientes = useQuery(() => supabase.from('clientes').select('nombre').order('nombre'), [])
   const stock = useQuery(() => supabase.from('stock_pedido_v').select('*').order('fecha').order('pedido_codigo'), [])
   const [f, setF] = useState(vacia(miSocio?.nombre))
   const [msg, setMsg] = useState({ error: '', ok: '' })
@@ -57,7 +58,7 @@ export default function Ventas() {
     }
     setMsg({ error: '', ok: pendiente > 0.01 ? `Venta registrada. Quedan ${usd(pendiente)} por cobrar.` : 'Venta registrada.' })
     setF(vacia(f.vendedor))
-    ventas.recargar(); stock.recargar()
+    ventas.recargar(); stock.recargar(); clientes.recargar()
   }
 
   return (
@@ -66,7 +67,10 @@ export default function Ventas() {
         <form onSubmit={guardar}>
           <div className="form">
             <Campo label="Fecha"><input type="date" value={f.fecha} onChange={set('fecha')} required /></Campo>
-            <Campo label="Cliente"><input value={f.cliente} onChange={set('cliente')} required /></Campo>
+            <Campo label="Cliente" ayuda="Si ya compró antes, elígelo de la lista para juntar su historial">
+              <input list="lista-clientes" value={f.cliente} onChange={set('cliente')} required />
+              <datalist id="lista-clientes">{clientes.data.map((c) => <option key={c.nombre} value={c.nombre} />)}</datalist>
+            </Campo>
             <Campo label="Vendedor">
               <select value={f.vendedor} onChange={set('vendedor')} required>
                 <option value="">Elegir…</option>

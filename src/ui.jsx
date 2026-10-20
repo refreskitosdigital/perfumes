@@ -58,3 +58,12 @@ export function Aviso({ error, ok }) {
   if (ok) return <div className="aviso ok">{ok}</div>
   return null
 }
+
+export function Insignia({ tono = '', children }) {
+  return <span className={'insignia ' + tono}>{children}</span>
+}
+
+// Texto de ayuda destacado ("¿Para qué sirve esto?")
+export function Guia({ children }) {
+  return <div className="guia"><span aria-hidden="true">💡</span><div>{children}</div></div>
+}

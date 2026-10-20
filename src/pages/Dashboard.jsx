@@ -1,10 +1,13 @@
 import React from 'react'
 import { supabase } from '../supabase.js'
 import { useQuery } from '../hooks.js'
+import { useApp } from '../App.jsx'
 import { Tarjeta, Seccion, Tabla, Aviso } from '../ui.jsx'
-import { usd, bs, num, pct } from '../lib.js'
+import { usd, bs, num, pct, cajaUsd } from '../lib.js'
 
 export default function Dashboard() {
+  const { tasa, miSocio } = useApp()
+  const pend = useQuery(() => supabase.from('pagos').select('monto').eq('estado', 'pendiente'), [])
   const res = useQuery(() => supabase.from('ganancia_pedido_v').select('*').order('codigo'), [])
   const soc = useQuery(() => supabase.from('ganancia_socios_v').select('*').order('socio'), [])
   const ven = useQuery(() => supabase.from('ventas_v').select('valor_usd,cobrado_usd,pendiente_usd'), [])
@@ -23,19 +26,30 @@ export default function Dashboard() {
   const saldo = (c) => num(caja.data.find((x) => x.cuenta === c)?.saldo)
   const top = [...inv.data].filter((r) => r.vendidos > 0).sort((a, b) => b.vendidos - a.vendidos).slice(0, 5)
   const pocos = inv.data.filter((r) => r.stock < 0 || (r.comprados > 0 && r.stock === 1)).sort((a, b) => a.stock - b.stock)
+  const pagosPend = pend.data.reduce((a, r) => a + num(r.monto), 0)
+  const disponible = cajaUsd(caja.data, tasa?.binance)
   const error = res.error || ven.error || soc.error || inv.error || caja.error || pre.error
 
   return (
     <>
       <Aviso error={error} />
-      <Seccion titulo="Resumen del negocio" ayuda="Se calcula solo a partir de Compras, Ventas y Cobros. Los Bs se valoran a Binance.">
+      <Seccion titulo={`Hola, ${miSocio?.nombre || ''} 👋 Esto es lo más importante hoy`} ayuda="Todo se calcula solo con lo que se registra en las otras pestañas.">
+        <div className="tarjetas grandes">
+          <Tarjeta titulo="💵 Dinero que tenemos" valor={usd(disponible)} tono="bueno" nota="Caja: Binance + efectivo + Bs" />
+          <Tarjeta titulo="📥 Nos deben (clientes)" valor={usd(pendiente)} tono={pendiente > 0 ? 'malo' : ''} nota="Ver pestaña Por cobrar" />
+          <Tarjeta titulo="🏦 Debemos (préstamos)" valor={usd(deuda)} tono={deuda > 0 ? 'malo' : ''} nota="Ver pestaña Pagos" />
+          <Tarjeta titulo="🧾 Pagos pendientes" valor={usd(pagosPend)} tono={pagosPend > 0 ? 'malo' : ''} nota="Proveedores y otros" />
+        </div>
+      </Seccion>
+
+      <Seccion titulo="Resumen del negocio" ayuda="Los Bs se valoran a Binance.">
         <div className="tarjetas">
           <Tarjeta titulo="Inversión total" valor={usd(inversion)} />
           <Tarjeta titulo="Vendido (valor real)" valor={usd(vendido)} />
           <Tarjeta titulo="Ya cobrado" valor={usd(cobrado)} />
           <Tarjeta titulo="Por cobrar" valor={usd(pendiente)} tono={pendiente > 0 ? 'malo' : ''} />
-          <Tarjeta titulo="Ganancia (vendido − costo)" valor={usd(ganancia)} tono={ganancia >= 0 ? 'bueno' : 'malo'} nota={inversion ? `Sobre inversión ${pct(ganancia / inversion)}` : ''} />
-          <Tarjeta titulo="Préstamo por devolver" valor={usd(deuda)} tono={deuda > 0 ? 'malo' : ''} />
+          <Tarjeta titulo="Ganancia hasta hoy (vendido − costo)" valor={usd(ganancia)} tono={ganancia >= 0 ? 'bueno' : 'malo'} nota={inversion ? `Sobre inversión ${pct(ganancia / inversion)}` : ''} />
+          <Tarjeta titulo="Préstamos por devolver" valor={usd(deuda)} tono={deuda > 0 ? 'malo' : ''} />
           <Tarjeta titulo="Mercancía en stock (a costo)" valor={usd(stockCosto)} />
         </div>
       </Seccion>
