@@ -1,3 +1,4 @@
+import { reducirImagen } from '../imagen.js'
 import React, { useMemo, useState } from 'react'
 import { supabase } from '../supabase.js'
 import { useQuery } from '../hooks.js'
@@ -52,35 +53,23 @@ export default function Inventario() {
     if (error) return fallo(error)
     ok(`Costo del pedido ${c.pedido_codigo} actualizado a ${usd(valor)}. Las ganancias se recalcularon.`); recargar()
   }
-  // Reduce la foto (máx. 900 px) antes de subirla para que la tienda cargue rápido
-  const reducir = (archivo) => new Promise((resolve, reject) => {
-    const img = new Image(); const url = URL.createObjectURL(archivo)
-    img.onload = () => {
-      const k = Math.min(1, 900 / Math.max(img.width, img.height))
-      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k)
-      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height)
-      URL.revokeObjectURL(url)
-      c.toBlob((b) => (b ? resolve(b) : reject(new Error('No se pudo procesar la foto'))), 'image/jpeg', 0.85)
-    }
-    img.onerror = () => reject(new Error('Ese archivo no es una imagen válida'))
-    img.src = url
-  })
-  const subirFoto = async (r, archivo) => {
+  // Cada perfume lleva 2 fotos: foto_url (principal) y foto2_url (aparece al pasar el cursor en la tienda)
+  const subirFoto = async (r, archivo, campo = 'foto_url') => {
     if (!archivo) return
-    setSubiendo(r.id)
+    setSubiendo(r.id + campo)
     try {
-      const blob = await reducir(archivo)
-      const ruta = `${r.id}-${Date.now()}.jpg`
+      const blob = await reducirImagen(archivo, 1100)
+      const ruta = `${r.id}-${campo === 'foto2_url' ? 'b' : 'a'}-${Date.now()}.jpg`
       const up = await supabase.storage.from('perfumes').upload(ruta, blob, { contentType: 'image/jpeg', upsert: true })
       if (up.error) throw up.error
       const { data } = supabase.storage.from('perfumes').getPublicUrl(ruta)
-      const { error } = await supabase.from('perfumes').update({ foto_url: data.publicUrl }).eq('id', r.id)
-      if (error) throw error
+      const { error } = await supabase.from('perfumes').update({ [campo]: data.publicUrl }).eq('id', r.id)
+      if (error) throw (/foto2_url/.test(error.message) ? new Error('Falta ejecutar migracion_v5.sql en Supabase.') : error)
       ok('Foto guardada. Ya se ve en la tienda.'); recargar()
     } catch (e) { fallo(e) } finally { setSubiendo(null) }
   }
-  const quitarFoto = async (r) => {
-    const { error } = await supabase.from('perfumes').update({ foto_url: null }).eq('id', r.id)
+  const quitarFoto = async (r, campo = 'foto_url') => {
+    const { error } = await supabase.from('perfumes').update({ [campo]: null }).eq('id', r.id)
     if (error) return fallo(error); ok('Foto quitada.'); recargar()
   }
   const visibleTienda = async (r, v) => {
@@ -128,14 +117,19 @@ export default function Inventario() {
       <tr key={'d' + r.id}><td colSpan={11} className="detalle-costos">
         <b>Foto y precios (lo que ve el cliente en la tienda)</b>
         <div className="foto-panel">
-          {meta[r.id]?.foto_url ? <img src={meta[r.id].foto_url} alt={r.nombre} /> : <div className="sin-foto">Sin foto</div>}
-          <div className="atajos">
-            <label className="boton-link" style={{ cursor: 'pointer' }}>
-              {subiendo === r.id ? 'Subiendo…' : meta[r.id]?.foto_url ? '📷 Cambiar foto' : '📷 Subir foto'}
-              <input type="file" accept="image/*" hidden disabled={subiendo === r.id} onChange={(e) => { subirFoto(r, e.target.files?.[0]); e.target.value = '' }} />
-            </label>
-            {meta[r.id]?.foto_url && <button onClick={() => quitarFoto(r)}>Quitar foto</button>}
-          </div>
+          {[['foto_url', 'Foto 1 · principal'], ['foto2_url', 'Foto 2 · al pasar el cursor']].map(([campo, titulo]) => (
+            <div key={campo} className="foto-slot">
+              <small>{titulo}</small>
+              {meta[r.id]?.[campo] ? <img src={meta[r.id][campo]} alt={`${r.nombre}, ${titulo}`} /> : <div className="sin-foto">Sin foto</div>}
+              <div className="atajos">
+                <label className="boton-link" style={{ cursor: 'pointer' }}>
+                  {subiendo === r.id + campo ? 'Subiendo…' : meta[r.id]?.[campo] ? '📷 Cambiar' : '📷 Subir'}
+                  <input type="file" accept="image/*" hidden disabled={subiendo === r.id + campo} onChange={(e) => { subirFoto(r, e.target.files?.[0], campo); e.target.value = '' }} />
+                </label>
+                {meta[r.id]?.[campo] && <button onClick={() => quitarFoto(r, campo)}>Quitar</button>}
+              </div>
+            </div>
+          ))}
         </div>
         <div className="form">
           <label className="campo"><span>Nombre del perfume</span>

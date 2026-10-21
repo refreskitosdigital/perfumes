@@ -3,7 +3,7 @@ import { supabase } from '../supabase.js'
 import { useQuery } from '../hooks.js'
 import { useApp } from '../App.jsx'
 import { Seccion, Campo, Tabla, Aviso } from '../ui.jsx'
-import { hoy, usd, bs, num, pct, precioPorCantidad, precioDivisa, precioBs, valorVenta, cobradoUsd, descuentoMax } from '../lib.js'
+import { hoy, usd, bs, num, precioPorCantidad, precioBs, cobradoUsd, tasaVenta } from '../lib.js'
 
 const vacia = (vendedor) => ({
   fecha: hoy(), cliente: '', vendedor: vendedor || '', perfume_id: '', pedido: '', unidades: 1, precio_unit: '',
@@ -34,8 +34,9 @@ export default function Ventas() {
   if (!tasa) return <Seccion titulo="Ventas"><p className="vacio">Primero registra la tasa de hoy en la pestaña Tasas.</p></Seccion>
 
   const total = num(f.unidades) * num(f.precio_unit)
-  const valor = valorVenta(f.base, total, tasa.bcv, tasa.binance)
-  const cobrado = cobradoUsd({ bs: f.pago_bs, efectivo: f.pago_efectivo, binance: f.pago_binance }, tasa.binance)
+  const tv = tasaVenta(tasa)   // BCV Euro: la única tasa de venta
+  const valor = total
+  const cobrado = cobradoUsd({ bs: f.pago_bs, efectivo: f.pago_efectivo, binance: f.pago_binance }, tv)
   const pendiente = valor - cobrado
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
   const llenar = (campo, v) => setF({ ...f, pago_bs: '', pago_efectivo: '', pago_binance: '', [campo]: v.toFixed(2) })
@@ -46,8 +47,8 @@ export default function Ventas() {
     if (pendiente < -0.01 && !window.confirm(`Cobraste ${usd(-pendiente)} más que el valor de la venta. ¿Guardar igual?`)) return
     const { data, error } = await supabase.from('ventas').insert({
       fecha: f.fecha, cliente: f.cliente, vendedor: f.vendedor, perfume_id: Number(f.perfume_id),
-      pedido_codigo: f.pedido || null, unidades: Number(f.unidades), precio_unit: num(f.precio_unit), base: f.base,
-      tasa_bcv: tasa.bcv, tasa_binance: tasa.binance, vence: f.vence || null, nota: f.nota || null,
+      pedido_codigo: f.pedido || null, unidades: Number(f.unidades), precio_unit: num(f.precio_unit), base: 'divisa',
+      tasa_bcv: tv, tasa_binance: tv, vence: f.vence || null, nota: f.nota || null,
     }).select('id').single()
     if (error) return setMsg({ error: error.message, ok: '' })
     const cobros = [['bs', f.pago_bs], ['efectivo', f.pago_efectivo], ['binance', f.pago_binance]]
@@ -91,17 +92,12 @@ export default function Ventas() {
             </Campo>
             <Campo label="Unidades" ayuda={`Al mayor desde ${config.umbral_mayor}`}><input type="number" min="1" value={f.unidades} onChange={set('unidades')} required /></Campo>
             <Campo label="Precio unit. $"><input type="number" step="0.01" min="0" value={f.precio_unit} onChange={set('precio_unit')} required /></Campo>
-            <Campo label="El precio está en" ayuda="BCV$ = se paga en Bs a tasa BCV">
-              <select value={f.base} onChange={set('base')}><option value="divisa">$ divisa (real)</option><option value="bcv">BCV$ (Bs a tasa BCV)</option></select>
-            </Campo>
             <Campo label="Fecha de pago del saldo"><input type="date" value={f.vence} onChange={set('vence')} /></Campo>
           </div>
 
           <div className="cobro">
-            <div><span>Precio pactado</span><b>{usd(total)}{f.base === 'bcv' ? ' BCV$' : ''}</b></div>
-            <div><span>Valor real en $ (repone a Binance)</span><b>{usd(valor)}</b></div>
-            <div><span>Si paga en Bs ({tasa.bcv})</span><b>{bs(precioBs(total, tasa.bcv))}</b></div>
-            <div><span>Si paga en divisa (−{pct(descuentoMax(tasa.bcv, tasa.binance))})</span><b>{usd(precioDivisa(total, tasa.bcv, tasa.binance))}</b></div>
+            <div><span>Precio de la venta</span><b>{usd(total)}</b></div>
+            <div><span>Si paga en Bs (tasa BCV Euro {tv.toLocaleString('es-VE')})</span><b>{bs(precioBs(total, tv))}</b></div>
           </div>
 
           <div className="form">
@@ -111,7 +107,7 @@ export default function Ventas() {
             <Campo label="Nota"><input value={f.nota} onChange={set('nota')} /></Campo>
           </div>
           <div className="atajos">
-            Cobrar todo en: <button type="button" onClick={() => llenar('pago_bs', valor * tasa.binance)}>Bs</button>
+            Cobrar todo en: <button type="button" onClick={() => llenar('pago_bs', valor * tv)}>Bs</button>
             <button type="button" onClick={() => llenar('pago_efectivo', valor)}>$ efectivo</button>
             <button type="button" onClick={() => llenar('pago_binance', valor)}>$ Binance</button>
             <span className={'estado ' + (Math.abs(pendiente) <= 0.01 ? 'ok' : 'falta')}>

@@ -14,8 +14,10 @@ Reparto de ganancias 50/50. Datos en Supabase, código en GitHub, publicada en N
 6. Luego ejecuta `supabase/seed_pedido_3.sql`: carga el pedido 3 (3 socios en partes iguales), los préstamos de REFRESKITO Digital y los correos de acceso de Juan, George y Rosanny.
 7. Por último ejecuta `supabase/migracion_v3.sql` (clientes, pagos y el botón Realizar pedido). Es seguro repetirla.
 8. Después ejecuta `supabase/migracion_v4.sql` (tienda online, fotos, pedidos web y demanda). Es seguro repetirla. Crea el bucket de fotos `perfumes`.
-9. Tienda pública: `https://TU-SITIO.netlify.app/tienda`. Entra a **Tienda online → Ajustes** y coloca el WhatsApp (ej. 584141234567), el mínimo al mayor (12) y tus métodos de pago.
-10. Fotos y precios: **Inventario → ✏️ Editar** (subir foto, cambiar precio y mostrar/ocultar en la tienda).
+9. Después ejecuta `supabase/migracion_v5.sql` (banners, segunda foto, datos de entrega, tu WhatsApp). Es seguro repetirla.
+10. Por último ejecuta `supabase/migracion_v6.sql` (una sola tasa de venta: BCV Euro; la Binance queda solo interna). Es seguro repetirla.
+11. Tienda pública: `https://TU-SITIO.netlify.app/tienda`. Entra a **Tienda online → Ajustes** y coloca el WhatsApp (ej. 584141234567), el mínimo al mayor (12) y tus métodos de pago.
+12. Banners: **Tienda online → Banners** (hasta 4, 1920 × 640 px). Fotos y precios: **Inventario → ✏️ Editar** (subir foto, cambiar precio y mostrar/ocultar en la tienda).
 8. En **Project Settings > API** copia dos datos: **Project URL** y la clave **anon public**.
 
 ### 2. GitHub (el código)

@@ -4,6 +4,7 @@ import { useQuery } from '../hooks.js'
 import { useApp } from '../App.jsx'
 import { Seccion, Campo, Aviso, Guia, Insignia, Tarjeta } from '../ui.jsx'
 import { usd, num, waLink } from '../lib.js'
+import { reducirImagen } from '../imagen.js'
 
 const fechaHora = (t) => new Date(t).toLocaleString('es-VE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Caracas' })
 
@@ -23,11 +24,13 @@ export default function TiendaOnline() {
       <div className="subtabs">
         <button className={vista === 'pedidos' ? 'on' : ''} onClick={() => setVista('pedidos')}>Pedidos {nuevos > 0 && <Insignia tono="warn">{nuevos} nuevos</Insignia>}</button>
         <button className={vista === 'demanda' ? 'on' : ''} onClick={() => setVista('demanda')}>Agendados (agotados) {porAtender > 0 && <Insignia>{porAtender}</Insignia>}</button>
+        <button className={vista === 'banners' ? 'on' : ''} onClick={() => setVista('banners')}>Banners</button>
         <button className={vista === 'ajustes' ? 'on' : ''} onClick={() => setVista('ajustes')}>Ajustes de la tienda</button>
       </div>
       <Aviso error={ped.error || dem.error} />
       {vista === 'pedidos' && <Pedidos ped={ped} />}
       {vista === 'demanda' && <Demanda dem={dem} />}
+      {vista === 'banners' && <Banners />}
       {vista === 'ajustes' && <Ajustes />}
     </>
   )
@@ -80,6 +83,9 @@ function Pedidos({ ped }) {
               </span>
             </header>
             <ul>{its.map((i) => <li key={i.id}>{i.unidades} × {nombre[i.perfume_id] || 'Perfume'} · {usd(i.precio_unit)} c/u</li>)}</ul>
+            {(p.ubicacion || p.delivery) && (
+              <p className="ayuda"><b>📍 {p.ubicacion || 'Sin zona'}</b> · {p.delivery ? <b>Delivery hasta: {p.entrega_en}</b> : 'Sin delivery (coordinar entrega)'}</p>
+            )}
             {p.notas && <p className="ayuda">Notas del cliente: {p.notas}</p>}
             <div className="atajos" style={{ marginTop: 10 }}>
               {wa && <a className="boton-link" href={wa} target="_blank" rel="noreferrer">💬 Escribir por WhatsApp</a>}
@@ -196,6 +202,59 @@ function Ajustes() {
         </div>
         <Aviso {...msg} />
       </form>
+    </Seccion>
+  )
+}
+
+function Banners() {
+  const ban = useQuery(() => supabase.from('tienda_banners').select('*').order('orden'), [])
+  const [subiendo, setSubiendo] = useState(0)
+  const [msg, setMsg] = useState({ error: '', ok: '' })
+  const porOrden = Object.fromEntries(ban.data.map((b) => [b.orden, b]))
+
+  const subir = async (orden, archivo) => {
+    if (!archivo) return
+    setSubiendo(orden); setMsg({ error: '', ok: '' })
+    try {
+      const blob = await reducirImagen(archivo, 1920, 0.88)
+      const ruta = `banners/banner-${orden}-${Date.now()}.jpg`
+      const up = await supabase.storage.from('perfumes').upload(ruta, blob, { contentType: 'image/jpeg', upsert: true })
+      if (up.error) throw up.error
+      const { data } = supabase.storage.from('perfumes').getPublicUrl(ruta)
+      const { error } = await supabase.from('tienda_banners').upsert({ orden, url: data.publicUrl, activo: true }, { onConflict: 'orden' })
+      if (error) throw (/tienda_banners/.test(error.message) ? new Error('Falta ejecutar migracion_v5.sql en Supabase.') : error)
+      setMsg({ error: '', ok: `Banner ${orden} guardado. Ya se ve en la tienda.` }); ban.recargar()
+    } catch (e) { setMsg({ error: e.message || String(e), ok: '' }) } finally { setSubiendo(0) }
+  }
+  const quitar = async (orden) => {
+    if (!window.confirm(`¿Quitar el banner ${orden} de la tienda?`)) return
+    const { error } = await supabase.from('tienda_banners').delete().eq('orden', orden)
+    if (error) return setMsg({ error: error.message, ok: '' })
+    setMsg({ error: '', ok: `Banner ${orden} quitado.` }); ban.recargar()
+  }
+
+  return (
+    <Seccion titulo="Banners del inicio de la tienda"
+      ayuda="Sube hasta 4 banners para las promociones del mes. Se deslizan solos en la parte superior de la tienda, en el orden 1 a 4.">
+      <Guia>Medida recomendada: <b>1920 × 640 px</b> (formato largo, 3 de ancho por 1 de alto). Deja el texto importante en el centro para que se vea bien en el celular. Si no subes ninguno, la tienda muestra una portada con el nombre.</Guia>
+      <Aviso error={ban.error} />
+      <Aviso {...msg} />
+      {[1, 2, 3, 4].map((n) => {
+        const b = porOrden[n]
+        return (
+          <div className="banner-fila" key={n}>
+            <b style={{ fontSize: 22, width: 28 }}>{n}</b>
+            {b ? <img src={b.url} alt={`Banner ${n}`} /> : <div className="sin-foto">Espacio libre</div>}
+            <div className="atajos">
+              <label className="boton-link" style={{ cursor: 'pointer' }}>
+                {subiendo === n ? 'Subiendo…' : b ? '📷 Cambiar imagen' : '📷 Subir banner'}
+                <input type="file" accept="image/*" hidden disabled={subiendo === n} onChange={(e) => { subir(n, e.target.files?.[0]); e.target.value = '' }} />
+              </label>
+              {b && <button onClick={() => quitar(n)}>Quitar</button>}
+            </div>
+          </div>
+        )
+      })}
     </Seccion>
   )
 }

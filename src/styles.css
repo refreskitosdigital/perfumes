@@ -120,6 +120,11 @@ input.mini { width: 84px; text-align: right; padding: 5px 6px; min-height: 0; }
 .menu .insignia.aviso-num { margin-left: auto; }
 .menu button .num-badge { margin-left: auto; background: var(--bad); color: #fff; border-radius: 99px; min-width: 22px; height: 22px; display: inline-grid; place-items: center; font-size: 12px; padding: 0 6px; }
 @media (max-width: 860px) { .menu button { position: relative; } .menu button .num-badge { position: absolute; top: 2px; right: 10px; margin: 0; } }
+.foto-slot { display: flex; flex-direction: column; gap: 6px; }
+.foto-slot small { color: var(--mut); }
+.banner-fila { display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.banner-fila img, .banner-fila .sin-foto { width: 360px; max-width: 100%; aspect-ratio: 3 / 1; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
+.banner-fila .sin-foto { display: grid; place-items: center; border-style: dashed; color: var(--mut); font-size: 13px; }
 .foto-panel { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 6px 0 14px; }
 .foto-panel img { width: 92px; height: 115px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
 .foto-panel .sin-foto { width: 92px; height: 115px; border-radius: 10px; border: 1px dashed var(--line); display: grid; place-items: center; color: var(--mut); font-size: 12px; text-align: center; }

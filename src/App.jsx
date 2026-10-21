@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, configurado } from './supabase.js'
 import { useQuery } from './hooks.js'
-import { descuentoMax, factor, pct } from './lib.js'
+import { descuentoMax, factor, pct, tasaVenta } from './lib.js'
 import Dashboard from './pages/Dashboard.jsx'
 import Agenda from './pages/Agenda.jsx'
 import Compras from './pages/Compras.jsx'
@@ -29,7 +29,7 @@ const TABS = [
   ['inventario', '📦', 'Inventario', 'Qué perfumes hay, cuáles se acaban y cuánto ganamos con cada uno.', Inventario],
   ['caja', '🏦', 'Caja', 'El dinero que tenemos, en cada cuenta.', Caja],
   ['pagos', '🧾', 'Pagos', 'Lo que pagamos a proveedores y lo que devolvemos de los préstamos.', Pagos],
-  ['tasas', '💱', 'Tasa del día', 'El dólar BCV y Binance de hoy. Hay que ponerla antes de vender.', Tasas],
+  ['tasas', '💱', 'Tasa del día', 'La tasa BCV Euro de hoy (tienda y ventas) y la Binance interna. Hay que ponerla antes de vender.', Tasas],
 ]
 const GRUPOS = [
   ['', ['dashboard']],
@@ -97,7 +97,7 @@ function Shell({ session }) {
         <header className="barra">
           <div className="marca">🌸 Perfumes <span>{nombresSocios.join(' · ')}</span></div>
           <div className="tasa-pill" title="Con esta tasa se calculan los precios y los Bs">
-            {tasa ? <>Tasa de hoy · BCV <b>{tasa.bcv}</b> · Binance <b>{tasa.binance}</b></> : <button className="link" onClick={() => setTab('tasas')}>⚠️ Falta la tasa de hoy</button>}
+            {tasa ? <>Tasa de hoy · BCV Euro <b>{tasaVenta(tasa)}</b> · Binance (interna) <b>{tasa.binance}</b></> : <button className="link" onClick={() => setTab('tasas')}>⚠️ Falta la tasa de hoy</button>}
           </div>
           <div className="usuario">👤 {miSocio?.nombre} <button onClick={() => supabase.auth.signOut()}>Salir</button></div>
         </header>

@@ -42,3 +42,10 @@ test('enlace de WhatsApp venezolano', () => {
 test('caja en dólares valora los Bs a Binance', () => {
   assert.equal(cajaUsd([{ cuenta: 'binance', saldo: 10 }, { cuenta: 'bs', saldo: 1015 }], 1015), 11)
 })
+
+test('tasaVenta usa la tasa BCV Euro y, en filas antiguas, el dólar BCV', async () => {
+  const { tasaVenta } = await import('../src/lib.js')
+  assert.equal(tasaVenta({ euro: 1030, bcv: 881, binance: 1015 }), 1030)
+  assert.equal(tasaVenta({ euro: null, bcv: 881, binance: 1015 }), 881)
+  assert.equal(tasaVenta(null), 0)
+})

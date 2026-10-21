@@ -29,7 +29,7 @@ export default function PorCobrar() {
 
   return (
     <>
-      <Seccion titulo="Cuentas por cobrar" ayuda="Ventas con saldo pendiente. Los Bs se valoran a la tasa Binance de la venta (o la que indiques al cobrar).">
+      <Seccion titulo="Cuentas por cobrar" ayuda="Ventas con saldo pendiente. Los Bs se valoran a la tasa BCV Euro de la venta (o la que indiques al cobrar).">
         <div className="tarjetas">
           <Tarjeta titulo="Total por cobrar" valor={usd(total)} nota={`${lista.data.length} ventas`} />
           <Tarjeta titulo="Vencido" valor={usd(vencido)} tono={vencido > 0 ? 'malo' : ''} />
@@ -59,10 +59,10 @@ export default function PorCobrar() {
                             <option value="efectivo">$ efectivo</option><option value="binance">$ Binance</option><option value="bs">Bs</option>
                           </select>
                         </Campo>
-                        <Campo label={f.cuenta === 'bs' ? 'Monto en Bs' : 'Monto $'} ayuda={f.cuenta === 'bs' ? 'Ej. pendiente × tasa Binance' : ''}>
+                        <Campo label={f.cuenta === 'bs' ? 'Monto en Bs' : 'Monto $'} ayuda={f.cuenta === 'bs' ? 'Ej. pendiente × tasa BCV Euro' : ''}>
                           <input type="number" step="0.01" min="0" value={f.monto} onChange={(e) => setF({ ...f, monto: e.target.value })} required />
                         </Campo>
-                        {f.cuenta === 'bs' && <Campo label="Tasa Binance del día" ayuda="Vacío = la de la venta"><input type="number" step="0.01" value={f.tasa} onChange={(e) => setF({ ...f, tasa: e.target.value })} /></Campo>}
+                        {f.cuenta === 'bs' && <Campo label="Tasa BCV Euro del día" ayuda="Vacío = la de la venta"><input type="number" step="0.01" value={f.tasa} onChange={(e) => setF({ ...f, tasa: e.target.value })} /></Campo>}
                         <button className="primario" type="submit">Guardar cobro</button>
                       </form>
                     </td></tr>

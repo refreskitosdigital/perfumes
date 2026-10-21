@@ -5,6 +5,9 @@ export const num = (v) => {
   return Number.isFinite(n) ? n : 0
 }
 
+// Tasa de venta única: BCV Euro (Bs por €). Las filas antiguas, sin euro, usan su dólar BCV.
+export const tasaVenta = (t) => (num(t?.euro) > 0 ? num(t.euro) : num(t?.bcv))
+
 // Factor Binance/BCV (≈1.1576): cuántos BCV$ vale 1 $ de divisa real
 export const factor = (bcv, binance) => (num(bcv) > 0 ? num(binance) / num(bcv) : 1)
 
