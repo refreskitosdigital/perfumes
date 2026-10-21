@@ -9,7 +9,9 @@ import { crearListaPdf } from '../pdf.js'
 const fechaLarga = () => new Date().toLocaleDateString('es-VE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Caracas' })
 
 export default function Inventario() {
-  const { config, recargarPerfumes } = useApp()
+  const { config, recargarPerfumes, perfumes } = useApp()
+  const meta = useMemo(() => Object.fromEntries(perfumes.data.map((p) => [p.id, p])), [perfumes.data])
+  const [subiendo, setSubiendo] = useState(null)
   const inv = useQuery(() => supabase.from('inventario_v').select('*').order('sku'), [])
   const compras = useQuery(() => supabase.from('compras_v').select('id,pedido_codigo,fecha,perfume_id,unidades,costo_unitario,costo_real').order('fecha', { ascending: false }).order('id'), [])
   const [msg, setMsg] = useState({ error: '', ok: '' })
@@ -50,6 +52,42 @@ export default function Inventario() {
     if (error) return fallo(error)
     ok(`Costo del pedido ${c.pedido_codigo} actualizado a ${usd(valor)}. Las ganancias se recalcularon.`); recargar()
   }
+  // Reduce la foto (máx. 900 px) antes de subirla para que la tienda cargue rápido
+  const reducir = (archivo) => new Promise((resolve, reject) => {
+    const img = new Image(); const url = URL.createObjectURL(archivo)
+    img.onload = () => {
+      const k = Math.min(1, 900 / Math.max(img.width, img.height))
+      const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k)
+      const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); ctx.drawImage(img, 0, 0, c.width, c.height)
+      URL.revokeObjectURL(url)
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error('No se pudo procesar la foto'))), 'image/jpeg', 0.85)
+    }
+    img.onerror = () => reject(new Error('Ese archivo no es una imagen válida'))
+    img.src = url
+  })
+  const subirFoto = async (r, archivo) => {
+    if (!archivo) return
+    setSubiendo(r.id)
+    try {
+      const blob = await reducir(archivo)
+      const ruta = `${r.id}-${Date.now()}.jpg`
+      const up = await supabase.storage.from('perfumes').upload(ruta, blob, { contentType: 'image/jpeg', upsert: true })
+      if (up.error) throw up.error
+      const { data } = supabase.storage.from('perfumes').getPublicUrl(ruta)
+      const { error } = await supabase.from('perfumes').update({ foto_url: data.publicUrl }).eq('id', r.id)
+      if (error) throw error
+      ok('Foto guardada. Ya se ve en la tienda.'); recargar()
+    } catch (e) { fallo(e) } finally { setSubiendo(null) }
+  }
+  const quitarFoto = async (r) => {
+    const { error } = await supabase.from('perfumes').update({ foto_url: null }).eq('id', r.id)
+    if (error) return fallo(error); ok('Foto quitada.'); recargar()
+  }
+  const visibleTienda = async (r, v) => {
+    const { error } = await supabase.from('perfumes').update({ visible_tienda: v }).eq('id', r.id)
+    if (error) return fallo(error); ok(v ? 'Ahora se muestra en la tienda.' : 'Ya no se muestra en la tienda.'); recargar()
+  }
+
   const guardarNombre = async (r, valor) => {
     const nombre = valor.trim()
     if (!nombre || nombre === r.nombre) return
@@ -88,9 +126,25 @@ export default function Inventario() {
     const cs = compras.data.filter((c) => c.perfume_id === r.id)
     return (
       <tr key={'d' + r.id}><td colSpan={11} className="detalle-costos">
+        <b>Foto y precios (lo que ve el cliente en la tienda)</b>
+        <div className="foto-panel">
+          {meta[r.id]?.foto_url ? <img src={meta[r.id].foto_url} alt={r.nombre} /> : <div className="sin-foto">Sin foto</div>}
+          <div className="atajos">
+            <label className="boton-link" style={{ cursor: 'pointer' }}>
+              {subiendo === r.id ? 'Subiendo…' : meta[r.id]?.foto_url ? '📷 Cambiar foto' : '📷 Subir foto'}
+              <input type="file" accept="image/*" hidden disabled={subiendo === r.id} onChange={(e) => { subirFoto(r, e.target.files?.[0]); e.target.value = '' }} />
+            </label>
+            {meta[r.id]?.foto_url && <button onClick={() => quitarFoto(r)}>Quitar foto</button>}
+          </div>
+        </div>
         <div className="form">
           <label className="campo"><span>Nombre del perfume</span>
             <input defaultValue={r.nombre} onBlur={(e) => guardarNombre(r, e.target.value)} /></label>
+          <label className="campo"><span>Precio al detal $</span>
+            <input type="number" step="0.5" min="0" defaultValue={r.precio_detal ?? ''} onBlur={(e) => { if (String(r.precio_detal ?? '') !== e.target.value) editarPrecio(r.id, 'precio_detal', e.target.value) }} /></label>
+          <label className="campo"><span>Precio al mayor $</span>
+            <input type="number" step="0.5" min="0" defaultValue={r.precio_mayor ?? ''} onBlur={(e) => { if (String(r.precio_mayor ?? '') !== e.target.value) editarPrecio(r.id, 'precio_mayor', e.target.value) }} /></label>
+          <label className="check"><input type="checkbox" checked={meta[r.id]?.visible_tienda !== false} onChange={(e) => visibleTienda(r, e.target.checked)} /> Mostrar en la tienda online</label>
         </div>
         <b>Lo que costó en cada compra</b>
         <p className="ayuda">Si te hicieron una rebaja, cambia el costo de esa compra. Se guarda al salir de la casilla y las ganancias se recalculan solas (incluidas las ventas ya hechas de ese pedido).</p>
@@ -113,7 +167,7 @@ export default function Inventario() {
 
   return (
     <>
-      <Guia>Aquí ves qué perfumes tienes y a cuánto los vendes. Toca <b>✏️ Costos</b> en cualquier perfume para corregir lo que te costó (por ejemplo, si te hicieron una rebaja). Abajo puedes descargar las <b>listas en PDF para tus clientes</b>: solo salen los perfumes que hay en stock, con su nombre y precio.</Guia>
+      <Guia>Aquí ves qué perfumes tienes y a cuánto los vendes. Toca <b>✏️ Editar</b> en cualquier perfume para corregir lo que te costó (por ejemplo, si te hicieron una rebaja), <b>subir su foto</b> para la tienda online y cambiar sus precios. Abajo puedes descargar las <b>listas en PDF para tus clientes</b>: solo salen los perfumes que hay en stock, con su nombre y precio.</Guia>
       <Aviso {...msg} error={msg.error || inv.error || compras.error} />
 
       <Seccion titulo="Listas para tus clientes (PDF)" ayuda="No incluyen costos, ganancias ni cantidades: solo el nombre y el precio de lo que tienes disponible.">
@@ -143,7 +197,7 @@ export default function Inventario() {
                 {visibles.map((r) => (
                   <React.Fragment key={r.id}>
                     <tr className={abierto === r.id ? 'fila-activa' : ''}>
-                      <td>{r.sku}</td><td><b>{r.nombre}</b></td>
+                      <td>{r.sku}</td><td>{meta[r.id]?.foto_url && <img className="miniatura" src={meta[r.id].foto_url} alt="" />}<b>{r.nombre}</b></td>
                       <td className="num"><b className={r.stock <= 1 ? 'alerta' : ''}>{r.stock < 0 ? `${r.stock} (por comprar)` : r.stock}</b></td>
                       <td className="num">{r.vendidos}</td>
                       <td className="num">{usd(r.costo)}</td>
@@ -152,7 +206,7 @@ export default function Inventario() {
                       <td className="num">{celda('precio_mayor')(r)}</td>
                       <td className="num">{pct(r.margen_detal)}</td>
                       <td className="num">{usd(r.ganancia)}</td>
-                      <td><button onClick={() => setAbierto(abierto === r.id ? null : r.id)}>✏️ Costos</button></td>
+                      <td><button onClick={() => setAbierto(abierto === r.id ? null : r.id)}>✏️ Editar</button></td>
                     </tr>
                     {abierto === r.id && filaDetalle(r)}
                   </React.Fragment>

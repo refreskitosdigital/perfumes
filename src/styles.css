@@ -113,3 +113,14 @@ input.mini { width: 84px; text-align: right; padding: 5px 6px; min-height: 0; }
 }
 .detalle-costos { background: var(--bg); padding: 14px 16px; }
 .detalle-costos .form { margin-bottom: 8px; }
+.subtabs { display: flex; gap: 8px; flex-wrap: wrap; }
+.subtabs button { border-radius: 99px; padding: 9px 18px; display: inline-flex; gap: 8px; align-items: center; }
+.subtabs button.on { background: var(--ac); color: #fff; border-color: var(--ac); }
+@media (prefers-color-scheme: dark) { .subtabs button.on { color: #231c18; } }
+.menu .insignia.aviso-num { margin-left: auto; }
+.menu button .num-badge { margin-left: auto; background: var(--bad); color: #fff; border-radius: 99px; min-width: 22px; height: 22px; display: inline-grid; place-items: center; font-size: 12px; padding: 0 6px; }
+@media (max-width: 860px) { .menu button { position: relative; } .menu button .num-badge { position: absolute; top: 2px; right: 10px; margin: 0; } }
+.foto-panel { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 6px 0 14px; }
+.foto-panel img { width: 92px; height: 115px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
+.foto-panel .sin-foto { width: 92px; height: 115px; border-radius: 10px; border: 1px dashed var(--line); display: grid; place-items: center; color: var(--mut); font-size: 12px; text-align: center; }
+.miniatura { width: 34px; height: 42px; object-fit: cover; border-radius: 6px; vertical-align: middle; margin-right: 8px; border: 1px solid var(--line); }

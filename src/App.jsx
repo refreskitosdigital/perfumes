@@ -12,6 +12,7 @@ import PorCobrar from './pages/PorCobrar.jsx'
 import Tasas from './pages/Tasas.jsx'
 import Clientes from './pages/Clientes.jsx'
 import Pagos from './pages/Pagos.jsx'
+import TiendaOnline from './pages/TiendaOnline.jsx'
 
 const Ctx = createContext(null)
 export const useApp = () => useContext(Ctx)
@@ -23,6 +24,7 @@ const TABS = [
   ['compras', '📥', 'Compras', 'Historial de lo que ya se compró a los proveedores.', Compras],
   ['ventas', '🛍️', 'Ventas', 'Anota cada venta y lo que el cliente paga.', Ventas],
   ['clientes', '👥', 'Clientes', 'Quién compra, cuánto, cuánto debe y quiénes son los mejores.', Clientes],
+  ['tienda', '🛒', 'Tienda online', 'Pedidos que llegan de la tienda web, perfumes agotados que piden y ajustes.', TiendaOnline],
   ['cobrar', '💵', 'Por cobrar', 'Lo que los clientes todavía nos deben.', PorCobrar],
   ['inventario', '📦', 'Inventario', 'Qué perfumes hay, cuáles se acaban y cuánto ganamos con cada uno.', Inventario],
   ['caja', '🏦', 'Caja', 'El dinero que tenemos, en cada cuenta.', Caja],
@@ -32,7 +34,7 @@ const TABS = [
 const GRUPOS = [
   ['', ['dashboard']],
   ['Comprar', ['agenda', 'compras']],
-  ['Vender', ['ventas', 'clientes', 'cobrar']],
+  ['Vender', ['ventas', 'tienda', 'clientes', 'cobrar']],
   ['Dinero', ['caja', 'pagos', 'tasas']],
   ['Productos', ['inventario']],
 ]
@@ -68,6 +70,8 @@ function Shell({ session }) {
   const tasas = useQuery(() => supabase.from('tasas').select('*').order('fecha', { ascending: false }), [])
   const cfg = useQuery(() => supabase.from('config').select('*').eq('id', 1), [])
   const perfumes = useQuery(() => supabase.from('perfumes').select('*').order('sku'), [])
+  const nuevosWeb = useQuery(() => supabase.from('pedidos_web').select('id').eq('estado', 'nuevo'), [])
+  useEffect(() => { const t = setInterval(nuevosWeb.recargar, 60000); return () => clearInterval(t) }, []) // eslint-disable-line
 
   const miSocio = socio.data.find((s) => s.email.toLowerCase() === session.user.email.toLowerCase())
   const tasa = tasas.data[0] || null
@@ -107,6 +111,7 @@ function Shell({ session }) {
                   return (
                     <button key={id} className={id === tab ? 'activa' : ''} onClick={() => { setTab(id); window.scrollTo({ top: 0 }) }}>
                       <span className="icono" aria-hidden="true">{t[1]}</span><span className="nombre">{t[2]}</span>
+                      {id === 'tienda' && nuevosWeb.data.length > 0 && <span className="num-badge" aria-label={`${nuevosWeb.data.length} pedidos nuevos`}>{nuevosWeb.data.length}</span>}
                     </button>
                   )
                 })}

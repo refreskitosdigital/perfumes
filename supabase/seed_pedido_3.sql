@@ -9,7 +9,7 @@
 
 -- ---------- Socios (correos de acceso) ----------
 insert into socios (email, nombre) values
-  ('juanjmontilva@gmail.com', 'Juan'),      -- CONFIRMAR: llegó escrito "juanjmontilvatgmail.com"
+  ('juanjmontilvat@gmail.com', 'Juan'),      -- CONFIRMAR: llegó escrito "juanjmontilvatgmail.com"
   ('georfredt2.0@gmail.com', 'George'),
   ('rosandrea010803@gmail.com', 'Rosanny')
 on conflict (email) do nothing;

@@ -13,6 +13,9 @@ Reparto de ganancias 50/50. Datos en Supabase, código en GitHub, publicada en N
 5. En el **SQL Editor**, nueva consulta: pega y ejecuta `supabase/seed_pedidos_1_2.sql` (carga los pedidos 1 y 2 con sus ventas, cobros pendientes y el préstamo).
 6. Luego ejecuta `supabase/seed_pedido_3.sql`: carga el pedido 3 (3 socios en partes iguales), los préstamos de REFRESKITO Digital y los correos de acceso de Juan, George y Rosanny.
 7. Por último ejecuta `supabase/migracion_v3.sql` (clientes, pagos y el botón Realizar pedido). Es seguro repetirla.
+8. Después ejecuta `supabase/migracion_v4.sql` (tienda online, fotos, pedidos web y demanda). Es seguro repetirla. Crea el bucket de fotos `perfumes`.
+9. Tienda pública: `https://TU-SITIO.netlify.app/tienda`. Entra a **Tienda online → Ajustes** y coloca el WhatsApp (ej. 584141234567), el mínimo al mayor (12) y tus métodos de pago.
+10. Fotos y precios: **Inventario → ✏️ Editar** (subir foto, cambiar precio y mostrar/ocultar en la tienda).
 8. En **Project Settings > API** copia dos datos: **Project URL** y la clave **anon public**.
 
 ### 2. GitHub (el código)
@@ -63,3 +66,10 @@ Los parámetros (30 %, 6 unidades, redondeo) están en la tabla `config` de Supa
 ## Notas
 - Los Bs recibidos se valoran a la tasa Binance (con la que se repone la divisa).
 - Supabase gratis pausa el proyecto tras 7 días sin uso; se reactiva desde su panel.
+
+
+## Dos sitios, un mismo código (tienda y control con dominios distintos)
+1. Sitio de **control** (el que ya tienes): no necesita cambios. Opcional: variable `VITE_URL_TIENDA` con la dirección de la tienda.
+2. Crea un **segundo sitio en Netlify** desde el MISMO repositorio de GitHub y agrega la variable `VITE_MODO` = `tienda` (Site configuration > Environment variables). Ese sitio abre la tienda en `/`.
+3. Cada sitio puede tener su propio dominio (Domain management > Add a domain). Ambos usan la misma base de datos de Supabase.
+4. Después de agregar variables, haz **Deploys > Trigger deploy > Clear cache and deploy site**.
