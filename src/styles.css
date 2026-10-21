@@ -111,3 +111,5 @@ input.mini { width: 84px; text-align: right; padding: 5px 6px; min-height: 0; }
   .barra { position: static; } .usuario { margin-left: 0; }
   .tasa-pill { font-size: 13px; }
 }
+.detalle-costos { background: var(--bg); padding: 14px 16px; }
+.detalle-costos .form { margin-bottom: 8px; }
