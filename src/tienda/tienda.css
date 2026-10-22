@@ -118,10 +118,8 @@ html { scroll-behavior: smooth; }
 .tienda .t-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .tienda .t-foto .f2 { opacity: 0; transition: opacity .4s; }
 @media (hover: hover) { .tienda .t-card:hover .f2 { opacity: 1; } }
-.tienda .t-card.agotado .t-foto { filter: grayscale(.85); opacity: .85; }
 .tienda .t-sello { position: absolute; top: 14px; left: 14px; font-size: 12px; letter-spacing: .06em; padding: 6px 12px; background: #fff; color: var(--tinta); z-index: 2; }
 .tienda .t-sello.poco { background: var(--mg); color: var(--tinta); }
-.tienda .t-sello.agot { background: var(--tinta); color: #fff; }
 .tienda .t-dos { position: absolute; bottom: 12px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; z-index: 2; }
 .tienda .t-dos i { width: 6px; height: 6px; border-radius: 3px; background: var(--tinta); opacity: .75; } .tienda .t-dos i + i { background: #8d9079; }
 .tienda .t-info { display: flex; flex-direction: column; gap: 6px; flex: 1; }
@@ -129,7 +127,6 @@ html { scroll-behavior: smooth; }
 .tienda .t-precio { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
 .tienda .t-precio b { font-size: 24px; font-weight: 500; }
 .tienda .t-precio small { font-size: 14px; color: var(--gris); }
-.tienda .t-card.agotado .t-precio b { color: #8d9079; }
 .tienda .t-nota { font-size: 13px; color: var(--gris); }
 
 .tienda .t-btn { display: inline-flex; align-items: center; justify-content: center; text-align: center; background: var(--tinta); color: #fff; padding: 14px 20px; font-size: 14px; letter-spacing: .08em; min-height: 48px; border: 1px solid var(--tinta); transition: background .2s, color .2s, border-color .2s; }
@@ -216,3 +213,5 @@ html { scroll-behavior: smooth; }
 .tienda .t-modal .t-btn { text-decoration: none; }
 .tienda .t-acciones { display: flex; gap: 12px; } .tienda .t-acciones .t-btn { flex: 1; }
 .tienda .t-toast { position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%); z-index: 60; background: var(--tinta); color: #fff; padding: 14px 24px; font-size: 15px; border-left: 4px solid var(--mg); max-width: calc(100% - 32px); }
+
+.tienda .t-precio .t-por-confirmar { font-size: 17px; font-weight: 400; color: var(--gris); font-family: var(--display); font-style: italic; }

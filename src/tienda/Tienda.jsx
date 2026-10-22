@@ -56,7 +56,7 @@ export default function Tienda() {
 
   // Carrito: quita lo que ya no existe o se agotó y recorta a lo disponible
   const lineas = useMemo(() => Object.entries(carro).map(([id, u]) => {
-    const p = porId[id]; if (!p || p.stock < 1) return null
+    const p = porId[id]; if (!p || p.stock < 1 || p.precio_detal == null) return null
     return { p, u: Math.min(u, p.stock) }
   }).filter(Boolean), [carro, porId])
   const unidades = lineas.reduce((a, l) => a + l.u, 0)
@@ -72,13 +72,13 @@ export default function Tienda() {
   })
 
   const visibles = useMemo(() => (cat || [])
-    .filter((p) => (!q || normNombre(p.nombre).includes(normNombre(q))) && (solo === 'todos' || (solo === 'disp' ? p.stock > 0 : p.stock === 0)))
-    .sort((a, b) => (b.stock > 0) - (a.stock > 0) || a.nombre.localeCompare(b.nombre, 'es')), [cat, q, solo])
-  const nDisp = (cat || []).filter((p) => p.stock > 0).length
+    .filter((p) => (!q || normNombre(p.nombre).includes(normNombre(q))) && (solo === 'todos' || (solo === 'disp' ? p.stock > 0 && p.precio_detal != null : p.stock === 0 || p.precio_detal == null)))
+    .sort((a, b) => ((b.stock > 0 && b.precio_detal != null) - (a.stock > 0 && a.precio_detal != null)) || a.nombre.localeCompare(b.nombre, 'es')), [cat, q, solo])
+  const nDisp = (cat || []).filter((p) => p.stock > 0 && p.precio_detal != null).length
 
   // Top perfumes: los más vendidos que todavía tienen stock
   const masPedidos = useMemo(() => (cat || [])
-    .filter((p) => p.stock > 0 && p.vendidos > 0)
+    .filter((p) => p.stock > 0 && p.vendidos > 0 && p.precio_detal != null)
     .sort((a, b) => b.vendidos - a.vendidos || a.nombre.localeCompare(b.nombre, 'es')).slice(0, 3), [cat])
 
   if (error && !cat) return <div className="t-estado"><p>{error}</p><button className="t-btn" onClick={cargar}>Reintentar</button></div>
@@ -121,7 +121,7 @@ export default function Tienda() {
           <div><Icono d={<path d="M4 5h16v11H9l-5 4V5z" />} /><span><b>Pedido por WhatsApp</b>Lo recibimos al instante</span></div>
           <div><Icono d={<><circle cx="12" cy="12" r="8" /><path d="M12 8v8M9.5 10.2c0-1 1-1.7 2.5-1.7s2.5.7 2.5 1.6c0 2-5 1.2-5 3.3 0 .9 1 1.7 2.5 1.7s2.5-.7 2.5-1.7" /></>} /><span><b>Paga en $, Bs o Binance</b>Bolívares a tasa BCV Euro</span></div>
           <div><Icono d={<><path d="M3 8l9-4 9 4-9 4-9-4z" /><path d="M3 8v8l9 4 9-4V8" /></>} /><span><b>Al mayor con {umbral} perfumes</b>Pueden ser todos diferentes</span></div>
-          <div><Icono d={<><rect x="4" y="5" width="16" height="15" rx="1" /><path d="M4 10h16M9 3v4M15 3v4" /></>} /><span><b>Agenda lo agotado</b>Te avisamos cuando llegue</span></div>
+          <div><Icono d={<><rect x="4" y="5" width="16" height="15" rx="1" /><path d="M4 10h16M9 3v4M15 3v4" /></>} /><span><b>Agenda el que quieras</b>Te avisamos cuando llegue</span></div>
         </div>
       </section>
 
@@ -140,7 +140,7 @@ export default function Tienda() {
               <input type="search" placeholder="Busca un perfume" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Busca un perfume" />
             </label>
             <div className="t-filtros">
-              {[['todos', 'Todos'], ['disp', `Disponibles (${nDisp})`], ['agot', 'Agotados']].map(([k, n]) => (
+              {[['todos', 'Todos'], ['disp', `Disponibles (${nDisp})`], ['agot', `Por agendar (${(cat || []).length - nDisp})`]].map(([k, n]) => (
                 <button key={k} className={solo === k ? 'on' : ''} onClick={() => setSolo(k)}>{n}</button>
               ))}
             </div>
@@ -317,32 +317,37 @@ function Hero({ info }) {
 }
 
 function Ficha({ p, tab, umbral, tasa, carro, cambiar, setAgendar }) {
-  const agot = p.stock < 1
+  const sinPrecio = p.precio_detal == null
+  const sinStock = p.stock < 1
+  const agendable = sinStock || sinPrecio     // no se puede comprar ahora: se agenda y le avisamos
   const tono = tonoDe(p.nombre)
   const enCarro = carro[p.id] || 0
   const precio = tab === 'mayor' ? num(p.precio_mayor) : num(p.precio_detal)
   return (
-    <article className={'t-card' + (agot ? ' agotado' : '')}>
+    <article className="t-card">
       <div className="t-foto" style={{ background: tono.fondo }}>
         {p.foto_url ? <img className="f1" src={p.foto_url} alt={p.nombre} loading="lazy" /> : <Botella nombre={p.nombre} tono={tono} />}
         {p.foto2_url && <img className="f2" src={p.foto2_url} alt={`${p.nombre}, segunda foto`} loading="lazy" />}
-        {agot && <span className="t-sello agot">Agotado</span>}
-        {!agot && p.stock <= 2 && <span className="t-sello poco">{p.stock === 1 ? 'Última unidad' : `Quedan ${p.stock}`}</span>}
+        {!agendable && p.stock <= 2 && <span className="t-sello poco">{p.stock === 1 ? 'Última unidad' : `Quedan ${p.stock}`}</span>}
         {p.foto2_url && <span className="t-dos" aria-hidden="true"><i /><i /></span>}
       </div>
       <div className="t-info">
         <h3>{p.nombre}</h3>
-        <div className="t-precio">
-          <b>{$(precio)}</b>
-          {tasa && <small>{Bs(precio, tasa.euro)}</small>}
-        </div>
+        {sinPrecio ? (
+          <div className="t-precio"><b className="t-por-confirmar">Precio por confirmar</b></div>
+        ) : (
+          <div className="t-precio">
+            <b>{$(precio)}</b>
+            {tasa && <small>{Bs(precio, tasa.euro)}</small>}
+          </div>
+        )}
         <small className="t-nota">
-          {tab === 'mayor' ? (num(p.precio_mayor) < num(p.precio_detal) ? `Al detal ${$(p.precio_detal)} · el mayor aplica con ${umbral} perfumes` : ' ')
+          {sinPrecio ? 'Agéndalo y te escribimos con el precio' : sinStock ? 'Te avisamos por WhatsApp cuando llegue' : tab === 'mayor' ? (num(p.precio_mayor) < num(p.precio_detal) ? `Al detal ${$(p.precio_detal)} · el mayor aplica con ${umbral} perfumes` : ' ')
             : (num(p.precio_mayor) < num(p.precio_detal) ? `Al mayor ${$(p.precio_mayor)} con ${umbral} perfumes (pueden ser diferentes)` : ' ')}
         </small>
       </div>
-      {agot
-        ? <button className="t-btn sec" onClick={() => setAgendar(p)}>Agendar pedido</button>
+      {agendable
+        ? <button className="t-btn sec" onClick={() => setAgendar(p)}>{sinPrecio ? 'Consultar precio' : 'Agendar pedido'}</button>
         : enCarro
           ? (
             <div className="t-paso" role="group" aria-label={`Cantidad de ${p.nombre}`}>
@@ -470,7 +475,7 @@ function Agendar({ p, onCerrar, onListo }) {
     <div className="t-cortina centro" onClick={onCerrar}>
       <form className="t-modal" onSubmit={enviar} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`Agendar ${p.nombre}`}>
         <h2>Agendar {p.nombre}</h2>
-        <p className="t-ayuda">Ahora está agotado. Déjanos tus datos y te avisamos por WhatsApp apenas lo traigamos. No tiene costo ni te compromete a comprar.</p>
+        <p className="t-ayuda">Ahora no lo tenemos disponible para compra directa. Déjanos tus datos y te escribimos por WhatsApp con el precio o apenas llegue. No tiene costo ni te compromete a comprar.</p>
         <div className="t-dos-cols">
           <label className="t-campo"><span>Nombre</span><input value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} required minLength={2} autoComplete="given-name" /></label>
           <label className="t-campo"><span>Apellido</span><input value={f.apellido} onChange={(e) => setF({ ...f, apellido: e.target.value })} required minLength={2} autoComplete="family-name" /></label>

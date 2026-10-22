@@ -211,7 +211,7 @@ export default function Inventario() {
         )}
         {inv.data.some((r) => r.stock > 0 && r.precio_detal == null) && (
           <div className="guia"><span aria-hidden="true">⚠️</span><div>
-            Hay perfumes en stock <b>sin precio al detal</b>; no saldrán en la lista en PDF hasta que les pongas precio.{' '}
+            Hay perfumes en stock <b>sin precio al detal</b>; no saldrán en la lista en PDF y en la tienda online solo se podrán <b>agendar</b> (salen como "Precio por confirmar") hasta que les pongas precio.{' '}
             {sinPrecio.length > 0 && <button onClick={ponerSugeridos}>💡 Poner el precio sugerido a los {sinPrecio.length} que no tienen</button>}
           </div></div>
         )}

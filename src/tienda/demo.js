@@ -18,7 +18,7 @@ const perfumes = [
   ['Ariana Grande Cloud', 36, 29, 24, 5], ['Ariana Grande Mod Blush', 36, 29, 6, 4], ['Asad Lattafa', 32, 26, 12, 4],
   ['Bharara Rose', 36, 29, 4, 3], ['One Million Paco Rabanne', 36, 29, 5, 3], ['Yara Candy Lattafa', 32, 26, 9, 3],
   ['Perry Ellis 360', 32, 26, 1, 2], ['Valentino Donna Intense', 38, 31, 5, 2], ['9 PM Night Out', 35, 28, 3, 2],
-  ['Afnan 9am Femme', 25, 20, 0, 5], ['Armaf Beach Party', 45, 36, 0, 4], ['Lattafa Khamrah Qahwa', 40, 32, 0, 3],
+  ['Afnan 9am Femme', 25, 20, 0, 5], ['Armaf Beach Party', 45, 36, 0, 4], ['Lattafa Khamrah Qahwa', 40, 32, 0, 3], ['Yara Fem Lattafa', null, null, 12, 0], ['Odyssey Tyrant', null, null, 13, 0],
   ['La Bomba Carolina Herrera', 40, 32, 0, 2],
 ].map(([nombre, d, m, stock, v], i) => ({ id: i + 1, nombre, precio_detal: d, precio_mayor: m, stock, foto_url: null, foto2_url: null, vendidos: v }))
 
