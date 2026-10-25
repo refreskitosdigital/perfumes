@@ -129,3 +129,32 @@ input.mini { width: 84px; text-align: right; padding: 5px 6px; min-height: 0; }
 .foto-panel img { width: 92px; height: 115px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
 .foto-panel .sin-foto { width: 92px; height: 115px; border-radius: 10px; border: 1px dashed var(--line); display: grid; place-items: center; color: var(--mut); font-size: 12px; text-align: center; }
 .miniatura { width: 34px; height: 42px; object-fit: cover; border-radius: 6px; vertical-align: middle; margin-right: 8px; border: 1px solid var(--line); }
+
+/* ---- Venta rápida ---- */
+.vl-lista { display: grid; gap: 10px; margin: 4px 0 14px; }
+.vl { display: grid; grid-template-columns: minmax(200px, 3fr) 90px 110px 110px 36px; gap: 8px; align-items: end; background: var(--bg); border-radius: 12px; padding: 10px; }
+.vl label span, .vl .vl-t span { display: block; font-size: 12px; color: var(--mut); margin-bottom: 2px; }
+.vl .vl-t b { font-variant-numeric: tabular-nums; display: block; padding: 8px 0; }
+.vl-nota { grid-column: 1 / -1; color: var(--mut); } .vl-nota.aviso-s { color: var(--bad); }
+.vl-x { padding: 4px 0; }
+.vl-lista > button { justify-self: start; }
+.plan { margin-bottom: 14px; }
+.plan-op { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.plan-op button { border-radius: 99px; padding: 9px 16px; }
+.plan-op button.on { background: var(--ac); color: #fff; border-color: var(--ac); }
+.plan-res { background: var(--bg); border-radius: 10px; padding: 10px 12px; margin: 0 0 12px; }
+.bueno { color: var(--ok); font-weight: 600; }
+.barras { display: grid; gap: 6px; margin: 4px 0 14px; }
+.barra-fila { display: grid; grid-template-columns: 120px 1fr 90px; gap: 10px; align-items: center; font-size: 13px; }
+.barra-fila b { text-align: right; font-variant-numeric: tabular-nums; }
+.barra-pista { background: var(--bg); border-radius: 99px; height: 14px; overflow: hidden; }
+.barra-rel { background: var(--ac); height: 100%; border-radius: 99px; min-width: 2px; }
+.pedido .nota-agenda { color: var(--mut); margin: 4px 0 0; }
+@media (max-width: 860px) {
+  .vl { grid-template-columns: 1fr 1fr 1fr; }
+  .vl-perfume { grid-column: 1 / -1; }
+  .vl-x { grid-column: 3; justify-self: end; }
+  .vl .vl-t { grid-column: auto; }
+  .barra-fila { grid-template-columns: 92px 1fr 76px; font-size: 12px; }
+  .plan-op button { flex: 1 1 46%; }
+}

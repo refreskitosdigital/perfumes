@@ -89,6 +89,7 @@ export default function Agenda() {
                 <RealizarPedido p={p} total={merc + num(p.envio)} unidades={items.reduce((a, l) => a + l.unidades, 0)}
                   socios={socios} cancelar={() => setRealizando(null)} terminar={terminar} onError={(error) => setMsg({ error, ok: '' })} />
               )}
+              {p.nota && <p className="nota-agenda">📝 {p.nota}</p>}
               <ul>{items.map((l) => <li key={l.id}>{l.nombre} · {l.unidades} u · costo {usd(l.costo_unitario)}{l.precio_detal ? ` · venta ${usd(l.precio_detal)}` : ''}</li>)}</ul>
             </article>
           )

@@ -13,6 +13,8 @@ import Tasas from './pages/Tasas.jsx'
 import Clientes from './pages/Clientes.jsx'
 import Pagos from './pages/Pagos.jsx'
 import TiendaOnline from './pages/TiendaOnline.jsx'
+import Rentabilidad from './pages/Rentabilidad.jsx'
+import Gastos from './pages/Gastos.jsx'
 
 const Ctx = createContext(null)
 export const useApp = () => useContext(Ctx)
@@ -27,6 +29,8 @@ const TABS = [
   ['tienda', '🛒', 'Tienda online', 'Pedidos que llegan de la tienda web, perfumes agotados que piden y ajustes.', TiendaOnline],
   ['cobrar', '💵', 'Por cobrar', 'Lo que los clientes todavía nos deben.', PorCobrar],
   ['inventario', '📦', 'Inventario', 'Qué perfumes hay, cuáles se acaban y cuánto ganamos con cada uno.', Inventario],
+  ['rentabilidad', '📊', 'Rentabilidad', 'Cuánto ganamos: total, por semana y mes, por pedido y por socio.', Rentabilidad],
+  ['gastos', '💸', 'Gastos', 'Delivery, traslados y otros gastos que bajan la ganancia.', Gastos],
   ['caja', '🏦', 'Caja', 'El dinero que tenemos, en cada cuenta.', Caja],
   ['pagos', '🧾', 'Pagos', 'Lo que pagamos a proveedores y lo que devolvemos de los préstamos.', Pagos],
   ['tasas', '💱', 'Tasa del día', 'La tasa BCV Euro de hoy (tienda y ventas) y la Binance interna. Hay que ponerla antes de vender.', Tasas],
@@ -35,7 +39,7 @@ const GRUPOS = [
   ['', ['dashboard']],
   ['Comprar', ['agenda', 'compras']],
   ['Vender', ['ventas', 'tienda', 'clientes', 'cobrar']],
-  ['Dinero', ['caja', 'pagos', 'tasas']],
+  ['Dinero', ['rentabilidad', 'caja', 'gastos', 'pagos', 'tasas']],
   ['Productos', ['inventario']],
 ]
 

@@ -17,6 +17,7 @@ Reparto de ganancias 50/50. Datos en Supabase, código en GitHub, publicada en N
 9. Después ejecuta `supabase/migracion_v5.sql` (banners, segunda foto, datos de entrega, tu WhatsApp). Es seguro repetirla.
 10. Por último ejecuta `supabase/migracion_v6.sql` (una sola tasa de venta: BCV Euro; la Binance queda solo interna). Es seguro repetirla.
 11. Ejecuta `supabase/migracion_v7.sql` (la tienda muestra TODOS los perfumes visibles, incluso los que aún no tienen precio: salen como "Precio por confirmar" y se pueden agendar). No modifica ni borra datos. Es seguro repetirla.
+12. Ejecuta `supabase/migracion_v8.sql` (gastos, tablero de Rentabilidad y carga del lote 3: ventas, cobros, agenda y cambio Moschino → Bharara Viking). La carga se aplica una sola vez aunque la repitas. Antes de correrla, la tasa del día debe estar registrada en la pestaña Tasas.
 11. Tienda pública: `https://TU-SITIO.netlify.app/tienda`. Entra a **Tienda online → Ajustes** y coloca el WhatsApp (ej. 584141234567), el mínimo al mayor (12) y tus métodos de pago.
 12. Banners: **Tienda online → Banners** (hasta 4, 1920 × 640 px). Fotos y precios: **Inventario → ✏️ Editar** (subir foto, cambiar precio y mostrar/ocultar en la tienda).
 8. En **Project Settings > API** copia dos datos: **Project URL** y la clave **anon public**.
