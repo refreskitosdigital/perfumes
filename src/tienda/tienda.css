@@ -215,3 +215,5 @@ html { scroll-behavior: smooth; }
 .tienda .t-toast { position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%); z-index: 60; background: var(--tinta); color: #fff; padding: 14px 24px; font-size: 15px; border-left: 4px solid var(--mg); max-width: calc(100% - 32px); }
 
 .tienda .t-precio .t-por-confirmar { font-size: 17px; font-weight: 400; color: var(--gris); font-family: var(--display); font-style: italic; }
+
+.tienda .t-desc { margin: 2px 0 6px; font-size: 13px; line-height: 1.4; color: var(--gris); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

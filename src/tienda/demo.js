@@ -12,6 +12,7 @@ const svgBanner = (fondo, acento, titulo, sub, tag) => {
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(s)
 }
 
+const DESC = { 'Ariana Grande Cloud': 'Dulce y aireado: pera, coco y praliné. Suave, para todos los días.', 'Santal 33': 'Madera de sándalo, cuero y cardamomo. Amaderado y elegante.', 'Yara Fem Lattafa': 'Vainilla cremosa con orquídea y fruta tropical. Llega pronto.' }
 const perfumes = [
   ['Carolina Herrera Good Girl', 30, 24, 1, 18], ['Invictus Parfum Paco Rabanne', 40, 32, 7, 12],
   ['Lattafa Art of Universe', 35, 28, 1, 9], ['Fantasy', 25, 20, 2, 7], ['Santal 33', 32, 26, 2, 6],
@@ -20,7 +21,7 @@ const perfumes = [
   ['Perry Ellis 360', 32, 26, 1, 2], ['Valentino Donna Intense', 38, 31, 5, 2], ['9 PM Night Out', 35, 28, 3, 2],
   ['Afnan 9am Femme', 25, 20, 0, 5], ['Armaf Beach Party', 45, 36, 0, 4], ['Lattafa Khamrah Qahwa', 40, 32, 0, 3], ['Yara Fem Lattafa', null, null, 12, 0], ['Odyssey Tyrant', null, null, 13, 0],
   ['La Bomba Carolina Herrera', 40, 32, 0, 2],
-].map(([nombre, d, m, stock, v], i) => ({ id: i + 1, nombre, precio_detal: d, precio_mayor: m, stock, foto_url: null, foto2_url: null, vendidos: v }))
+].map(([nombre, d, m, stock, v], i) => ({ id: i + 1, nombre, precio_detal: d, precio_mayor: m, stock, foto_url: null, foto2_url: null, vendidos: v, descripcion: DESC[nombre] || null }))
 
 const info = {
   nombre: 'MOTOSA PARFUM', whatsapp: '584241735215', umbral_mayor: 12,

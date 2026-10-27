@@ -15,6 +15,8 @@ import Pagos from './pages/Pagos.jsx'
 import TiendaOnline from './pages/TiendaOnline.jsx'
 import Rentabilidad from './pages/Rentabilidad.jsx'
 import Gastos from './pages/Gastos.jsx'
+import Catalogo from './pages/Catalogo.jsx'
+import Vendedoras from './pages/Vendedoras.jsx'
 
 const Ctx = createContext(null)
 export const useApp = () => useContext(Ctx)
@@ -24,6 +26,8 @@ const TABS = [
   ['dashboard', '🏠', 'Inicio', 'Cómo va el negocio hoy: plata, deudas y ganancias.', Dashboard],
   ['agenda', '🗓️', 'Agenda de pedidos', 'Planea lo que vas a comprar y, cuando se compre, pulsa Realizar pedido.', Agenda],
   ['compras', '📥', 'Compras', 'Historial de lo que ya se compró a los proveedores.', Compras],
+  ['catalogo', '🗂️', 'Catálogo', 'Perfumes que se publican en la tienda y a las vendedoras: nombre, descripción, fotos, 3 precios y existencia (estén o no en inventario).', Catalogo],
+  ['vendedoras', '🤝', 'Vendedoras', 'Pedidos de Gardimar y Wuilesmar: aprobar, ver cuánto ganan y cuánto te deben.', Vendedoras],
   ['ventas', '🛍️', 'Ventas', 'Anota cada venta y lo que el cliente paga.', Ventas],
   ['clientes', '👥', 'Clientes', 'Quién compra, cuánto, cuánto debe y quiénes son los mejores.', Clientes],
   ['tienda', '🛒', 'Tienda online', 'Pedidos que llegan de la tienda web, perfumes agotados que piden y ajustes.', TiendaOnline],
@@ -38,9 +42,9 @@ const TABS = [
 const GRUPOS = [
   ['', ['dashboard']],
   ['Comprar', ['agenda', 'compras']],
-  ['Vender', ['ventas', 'tienda', 'clientes', 'cobrar']],
+  ['Vender', ['ventas', 'vendedoras', 'tienda', 'clientes', 'cobrar']],
   ['Dinero', ['rentabilidad', 'caja', 'gastos', 'pagos', 'tasas']],
-  ['Productos', ['inventario']],
+  ['Productos', ['catalogo', 'inventario']],
 ]
 
 function Login() {
@@ -75,7 +79,8 @@ function Shell({ session }) {
   const cfg = useQuery(() => supabase.from('config').select('*').eq('id', 1), [])
   const perfumes = useQuery(() => supabase.from('perfumes').select('*').order('sku'), [])
   const nuevosWeb = useQuery(() => supabase.from('pedidos_web').select('id').eq('estado', 'nuevo'), [])
-  useEffect(() => { const t = setInterval(nuevosWeb.recargar, 60000); return () => clearInterval(t) }, []) // eslint-disable-line
+  const nuevosVend = useQuery(() => supabase.from('pedidos_vendedora').select('id').eq('estado', 'pendiente'), [])
+  useEffect(() => { const t = setInterval(() => { nuevosWeb.recargar(); nuevosVend.recargar() }, 60000); return () => clearInterval(t) }, []) // eslint-disable-line
 
   const miSocio = socio.data.find((s) => s.email.toLowerCase() === session.user.email.toLowerCase())
   const tasa = tasas.data[0] || null
@@ -116,6 +121,7 @@ function Shell({ session }) {
                     <button key={id} className={id === tab ? 'activa' : ''} onClick={() => { setTab(id); window.scrollTo({ top: 0 }) }}>
                       <span className="icono" aria-hidden="true">{t[1]}</span><span className="nombre">{t[2]}</span>
                       {id === 'tienda' && nuevosWeb.data.length > 0 && <span className="num-badge" aria-label={`${nuevosWeb.data.length} pedidos nuevos`}>{nuevosWeb.data.length}</span>}
+                      {id === 'vendedoras' && nuevosVend.data.length > 0 && <span className="num-badge" aria-label={`${nuevosVend.data.length} pedidos por aprobar`}>{nuevosVend.data.length}</span>}
                     </button>
                   )
                 })}

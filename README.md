@@ -18,6 +18,7 @@ Reparto de ganancias 50/50. Datos en Supabase, código en GitHub, publicada en N
 10. Por último ejecuta `supabase/migracion_v6.sql` (una sola tasa de venta: BCV Euro; la Binance queda solo interna). Es seguro repetirla.
 11. Ejecuta `supabase/migracion_v7.sql` (la tienda muestra TODOS los perfumes visibles, incluso los que aún no tienen precio: salen como "Precio por confirmar" y se pueden agendar). No modifica ni borra datos. Es seguro repetirla.
 12. Ejecuta `supabase/migracion_v8.sql` (gastos, tablero de Rentabilidad y carga del lote 3: ventas, cobros, agenda y cambio Moschino → Bharara Viking). La carga se aplica una sola vez aunque la repitas. Antes de correrla, la tasa del día debe estar registrada en la pestaña Tasas.
+13. Ejecuta `supabase/migracion_v9.sql` (Catálogo con 3 precios, descripciones, vendedoras con PIN, pedidos de vendedoras y sus cobros). Hay que haber corrido antes v4 → v8, en orden. Es seguro repetirla.
 11. Tienda pública: `https://TU-SITIO.netlify.app/tienda`. Entra a **Tienda online → Ajustes** y coloca el WhatsApp (ej. 584141234567), el mínimo al mayor (12) y tus métodos de pago.
 12. Banners: **Tienda online → Banners** (hasta 4, 1920 × 640 px). Fotos y precios: **Inventario → ✏️ Editar** (subir foto, cambiar precio y mostrar/ocultar en la tienda).
 8. En **Project Settings > API** copia dos datos: **Project URL** y la clave **anon public**.
@@ -77,3 +78,12 @@ Los parámetros (30 %, 6 unidades, redondeo) están en la tabla `config` de Supa
 2. Crea un **segundo sitio en Netlify** desde el MISMO repositorio de GitHub y agrega la variable `VITE_MODO` = `tienda` (Site configuration > Environment variables). Ese sitio abre la tienda en `/`.
 3. Cada sitio puede tener su propio dominio (Domain management > Add a domain). Ambos usan la misma base de datos de Supabase.
 4. Después de agregar variables, haz **Deploys > Trigger deploy > Clear cache and deploy site**.
+
+
+## Link de vendedoras (Gardimar y Wuilesmar)
+1. Crea un **tercer sitio en Netlify** desde el MISMO repositorio y agrega las variables `VITE_MODO` = `vendedoras`, `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (las mismas de los otros sitios). Luego **Clear cache and deploy site**. También funciona en `/vendedoras` del sitio de control.
+2. Opcional: en el sitio de control agrega `VITE_URL_VENDEDORAS` con esa dirección para verla y copiarla en la pestaña **Vendedoras**.
+3. En **Vendedoras** crea a cada una con usuario y PIN (6 a 10 dígitos). Tras 5 intentos fallidos se bloquea 15 minutos.
+4. En **Catálogo** completa para cada perfume los 3 precios: tienda (detal), mayor y consignación. Sin precio de consignación no aparece para las vendedoras. Regla: costo < consignación ≤ mayor ≤ detal (la app avisa si no cuadra).
+5. Regla de cobro: la perfumería cobra primero su consignación; lo que el cliente pague por encima de ella es ganancia de la vendedora. Ej.: consigna $25, venta $35 → los primeros $25 cobrados son de la perfumería y los últimos $10 de ella.
+6. Flujo: ellas agendan el pedido → tú lo apruebas en **Vendedoras** → se crean las ventas al precio de consignación → ellas anotan cobros (quién, cuándo, cuánto) y tú registras con **Recibir pago** lo que te entregan.

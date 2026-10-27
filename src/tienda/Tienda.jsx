@@ -333,6 +333,7 @@ function Ficha({ p, tab, umbral, tasa, carro, cambiar, setAgendar }) {
       </div>
       <div className="t-info">
         <h3>{p.nombre}</h3>
+        {p.descripcion && <p className="t-desc" title={p.descripcion}>{p.descripcion}</p>}
         {sinPrecio ? (
           <div className="t-precio"><b className="t-por-confirmar">Precio por confirmar</b></div>
         ) : (

@@ -64,9 +64,18 @@ group by ps.socio;
 -- =====================================================================
 -- 3. CARGA DEL LOTE 3  (una sola vez)
 -- =====================================================================
+-- Busca un perfume por nombre exacto o, si tu catálogo lo tiene escrito distinto, por una parte del nombre
+create or replace function v8_buscar_perfume(p_nombre text, p_patron text) returns bigint
+language sql stable as $f$
+  select id from perfumes
+  where lower(trim(nombre)) = lower(trim(p_nombre)) or nombre ~* p_patron
+  order by (lower(trim(nombre)) = lower(trim(p_nombre))) desc, length(nombre), id
+  limit 1
+$f$;
+
 do $$
 declare
-  tv numeric; tb numeric;
+  tv numeric; tb numeric; faltan text;
   v_id bigint; pid bigint; r record; cod text;
 begin
   if exists (select 1 from cargas_hechas where clave = 'v8_lote3') then
@@ -79,41 +88,44 @@ begin
   if tv is null then raise exception 'Primero registra la tasa de hoy en la pestaña Tasas y vuelve a ejecutar esto.'; end if;
 
   -- ---- 3.1 Cambio de Moschino (no llegó) por Bharara Viking en el pedido P-003 ----
-  insert into perfumes (nombre) values ('Bharara Viking') on conflict do nothing;
-  update compras set perfume_id = (select id from perfumes where lower(trim(nombre)) = 'bharara viking')
+  if v8_buscar_perfume('Bharara Viking', 'viking') is null then insert into perfumes (nombre) values ('Bharara Viking'); end if;
+  update compras set perfume_id = v8_buscar_perfume('Bharara Viking', 'viking')
   where pedido_codigo = 'P-003'
-    and perfume_id = (select id from perfumes where lower(trim(nombre)) = 'moschino toy boy');
+    and perfume_id = v8_buscar_perfume('Moschino Toy Boy', 'moschino');
 
   -- ---- 3.2 Perfumes que no estaban en el catálogo ----
-  insert into perfumes (nombre) values ('Lattafa Yara Moi'), ('Mont Blanc Legend Spirit') on conflict do nothing;
+  if v8_buscar_perfume('Lattafa Yara Moi', 'yara.*moi') is null then insert into perfumes (nombre) values ('Lattafa Yara Moi'); end if;
+  if v8_buscar_perfume('Mont Blanc Legend Spirit', 'legend.*spirit') is null then insert into perfumes (nombre) values ('Mont Blanc Legend Spirit'); end if;
 
   -- ---- 3.3 Ventas del lote 3 ----
   -- (cliente, vendedor, perfume, unidades, precio_unit $, vence, nota, cobrado ahora en efectivo)
   drop table if exists pg_temp._v8_lote3;
   create temp table _v8_lote3 (cliente text, vendedor text, perfume text, unid int, precio numeric,
-                        vence date, nota text, cobrado numeric, pedido text) on commit drop;
+                        vence date, nota text, cobrado numeric, pedido text, patron text) on commit drop;
   insert into _v8_lote3 values
-   ('Lory Teran',        'Juan',    'Ariana Grande Cloud',                     1, 25, '2026-10-30', 'Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003'),
-   ('Lory Teran',        'Juan',    'Ariana Grande Mod Blush',                 1, 25, '2026-10-30', 'Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003'),
-   ('Elvys Castillo',    'Juan',    'Victorinox',                              1, 25, '2026-10-30', 'Swiss Army Classic. Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003'),
-   ('Rosalba Montilva',  'Juan',    'Carolina Herrera La Vie Est Belle',       1, 25, '2026-10-30', 'Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003'),
-   ('Carola Carvajal',   'George',  'Armaf Odyssey Mandarin Sky Elixir',       1, 30, '2026-10-30', 'Con Yara Moi: total $60. Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003'),
-   ('Carola Carvajal',   'George',  'Lattafa Yara Moi',                        1, 30, '2026-10-30', 'Con Mandarin Sky: total $60. Pagará 50% el 30/10 y 50% el 15/11. REVISAR: Yara Moi no está en las compras del lote 3', 0, 'P-003'),
-   ('Rosalba Guitian',   'Rosanny', 'Carolina Herrera Good Girl Fem',          1, 30, '2026-10-30', 'Precio $30 BCV. Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003'),
-   ('Jhoanny',           'Rosanny', 'Lattafa Yara Candy Fem',                  1, 35, '2026-10-30', 'Precio $35 BCV. Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003'),
-   ('Dra. Yexy',         'Juan',    'Victoria Secret Splash 250ml (variados)', 2, 7.5,'2026-10-30', 'Splash Coconut ×2 (total $15). Paga el 30/10', 0, 'P-003'),
-   ('Juan Teran',        'Juan',    'Victoria Secret Splash 250ml (variados)', 2, 7.5,'2026-10-30', 'Splash Juice Berry ×2 (total $15). Paga el 30/10', 0, 'P-003'),
-   ('Keylin Cabrera',    'Juan',    'Ariana Grande Thank U Next',              1, 25, null,         'Pagó en efectivo', 25, 'P-003'),
-   ('Juan Teran',        'Juan',    '9 PM Night Out',                          1, 35, '2026-10-30', 'Precio $35 BCV. Paga el 30/10', 0, 'P-003'),
-   ('Almari',            'Rosanny', 'Lattafa Yara Fem',                        1, 35, '2026-10-30', 'Yara Clásico, precio $35 BCV. Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003'),
-   ('Jesus Teran',       'Juan',    'One Million Paco Rabanne',                1, 20, '2026-10-30', 'Pagará el 30/10 y el 15/11 (mitad y mitad)', 0, 'P-003'),
-   ('Jesus Teran',       'Juan',    'Bestia Negra',                            1, 20, '2026-10-30', 'Club de Nuit. Pagará el 30/10 y el 15/11 (mitad y mitad)', 0, 'P-003'),
+   ('Lory Teran',        'Juan',    'Ariana Grande Cloud',                     1, 25, '2026-10-30', 'Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003', 'cloud'),
+   ('Lory Teran',        'Juan',    'Ariana Grande Mod Blush',                 1, 25, '2026-10-30', 'Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003', 'mod blush'),
+   ('Elvys Castillo',    'Juan',    'Victorinox',                              1, 25, '2026-10-30', 'Swiss Army Classic. Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003', 'victorinox|swiss army'),
+   ('Rosalba Montilva',  'Juan',    'Lancome La Vie Est Belle',       1, 25, '2026-10-30', 'Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003', 'la vie est belle'),
+   ('Carola Carvajal',   'George',  'Armaf Odyssey Mandarin Sky Elixir',       1, 30, '2026-10-30', 'Con Yara Moi: total $60. Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003', 'mandari[n]e? sky'),
+   ('Carola Carvajal',   'George',  'Lattafa Yara Moi',                        1, 30, '2026-10-30', 'Con Mandarin Sky: total $60. Pagará 50% el 30/10 y 50% el 15/11. REVISAR: Yara Moi no está en las compras del lote 3', 0, 'P-003', 'yara.*moi'),
+   ('Rosalba Guitian',   'Rosanny', 'Carolina Herrera Good Girl Fem',          1, 30, '2026-10-30', 'Precio $30 BCV. Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003', 'good girl'),
+   ('Jhoanny',           'Rosanny', 'Lattafa Yara Candy Fem',                  1, 35, '2026-10-30', 'Precio $35 BCV. Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003', 'yara candy'),
+   ('Dra. Yexy',         'Juan',    'Victoria Secret Splash 250ml (variados)', 2, 7.5,'2026-10-30', 'Splash Coconut ×2 (total $15). Paga el 30/10', 0, 'P-003', 'splash'),
+   ('Juan Teran',        'Juan',    'Victoria Secret Splash 250ml (variados)', 2, 7.5,'2026-10-30', 'Splash Juice Berry ×2 (total $15). Paga el 30/10', 0, 'P-003', 'splash'),
+   ('Keylin Cabrera',    'Juan',    'Ariana Grande Thank U Next',              1, 25, null,         'Pagó en efectivo', 25, 'P-003', 'thank u next'),
+   ('Juan Teran',        'Juan',    '9 PM Night Out',                          1, 35, '2026-10-30', 'Precio $35 BCV. Paga el 30/10', 0, 'P-003', '9 ?pm'),
+   ('Almari',            'Rosanny', 'Lattafa Yara Fem',                        1, 35, '2026-10-30', 'Yara Clásico, precio $35 BCV. Pagará 50% el 30/10 y 50% el 15/11', 0, 'P-003', '^(lattafa )?yara( fem)?( cl.sic[oa])?$'),
+   ('Jesus Teran',       'Juan',    'One Million Paco Rabanne',                1, 20, '2026-10-30', 'Pagará el 30/10 y el 15/11 (mitad y mitad)', 0, 'P-003', 'one million'),
+   ('Jesus Teran',       'Juan',    'Bestia Negra',                            1, 20, '2026-10-30', 'Club de Nuit. Pagará el 30/10 y el 15/11 (mitad y mitad)', 0, 'P-003', 'bestia negra|club de nuit'),
    -- Reserva sin stock: venta anticipada (se descuenta cuando llegue la compra)
-   ('Mauricio Garcez',   'Juan',    'Mont Blanc Legend Spirit',                1, 25, null,         'Reserva: pagó $10, debe $15. Hay que comprarlo (está en la Agenda)', 10, null);
+   ('Mauricio Garcez',   'Juan',    'Mont Blanc Legend Spirit',                1, 25, null,         'Reserva: pagó $10, debe $15. Hay que comprarlo (está en la Agenda)', 10, null, 'legend.*spirit');
+
+  select string_agg(distinct perfume, ', ') into faltan from _v8_lote3 where v8_buscar_perfume(perfume, patron) is null;
+  if faltan is not null then raise exception 'No encuentro estos perfumes en tu catálogo: %. Avísame cómo se llaman y lo ajusto.', faltan; end if;
 
   for r in select * from _v8_lote3 loop
-    select id into pid from perfumes where lower(trim(nombre)) = lower(r.perfume);
-    if pid is null then raise exception 'No encuentro el perfume %', r.perfume; end if;
+    pid := v8_buscar_perfume(r.perfume, r.patron);
     insert into ventas (fecha, cliente, vendedor, perfume_id, pedido_codigo, unidades, precio_unit, base,
                         tasa_bcv, tasa_binance, vence, nota)
     values ('2026-10-24', r.cliente, r.vendedor, pid, r.pedido, r.unid, r.precio, 'divisa', tv, tv, r.vence, r.nota)
@@ -147,14 +159,16 @@ begin
           'Pendientes por comprar. Splash: 1 Pure Seduction + 1 Vainilla Lace. Los vendió Wilesmar. Incluye la reserva de Mauricio Garcez (Mont Blanc Legend Spirit).');
   insert into agenda_socios (codigo, socio, aporte) select cod, nombre, 0 from socios;
   insert into agenda_lineas (codigo, nombre, unidades, costo_unitario, precio_detal) values
-    (cod, 'Carolina Herrera 212 VIP',                  2, 11, null),
-    (cod, 'Lattafa Yara Fem',                          1, 12, null),
-    (cod, 'Armaf Odyssey Mandarin Sky Elixir',         1, 13, null),
-    (cod, 'Bestia Negra',                              1, 12, null),
-    (cod, '9 PM Night Out',                            1, 13, null),
-    (cod, 'Victoria Secret Splash 250ml (variados)',   2, 3,  null),
-    (cod, 'Mont Blanc Legend Spirit',                  1, 13, null);
+    (cod, coalesce((select nombre from perfumes where id = v8_buscar_perfume('Carolina Herrera 212 VIP', '212 vip')), 'Carolina Herrera 212 VIP'), 2, 11, null),
+    (cod, coalesce((select nombre from perfumes where id = v8_buscar_perfume('Lattafa Yara Fem', '^(lattafa )?yara( fem)?( cl.sic[oa])?$')), 'Lattafa Yara Fem'), 1, 12, null),
+    (cod, coalesce((select nombre from perfumes where id = v8_buscar_perfume('Armaf Odyssey Mandarin Sky Elixir', 'mandari[n]e? sky')), 'Armaf Odyssey Mandarin Sky Elixir'), 1, 13, null),
+    (cod, coalesce((select nombre from perfumes where id = v8_buscar_perfume('Bestia Negra', 'bestia negra|club de nuit')), 'Bestia Negra'), 1, 12, null),
+    (cod, coalesce((select nombre from perfumes where id = v8_buscar_perfume('9 PM Night Out', '9 ?pm')), '9 PM Night Out'), 1, 13, null),
+    (cod, coalesce((select nombre from perfumes where id = v8_buscar_perfume('Victoria Secret Splash 250ml (variados)', 'splash')), 'Victoria Secret Splash 250ml (variados)'), 2, 3,  null),
+    (cod, coalesce((select nombre from perfumes where id = v8_buscar_perfume('Mont Blanc Legend Spirit', 'legend.*spirit')), 'Mont Blanc Legend Spirit'), 1, 13, null);
 
   insert into cargas_hechas (clave) values ('v8_lote3');
   raise notice 'Lote 3 cargado: % ventas. Agenda creada: %', (select count(*) from _v8_lote3), cod;
 end $$;
+
+drop function if exists v8_buscar_perfume(text, text);
