@@ -4,6 +4,7 @@ import { useQuery } from '../hooks.js'
 import { useApp } from '../App.jsx'
 import { Tarjeta, Seccion, Tabla, Aviso } from '../ui.jsx'
 import { usd, bs, num, pct, cajaUsd } from '../lib.js'
+import CobrosHoy from './CobrosHoy.jsx'
 
 export default function Dashboard() {
   const { tasa, miSocio } = useApp()
@@ -33,6 +34,7 @@ export default function Dashboard() {
   return (
     <>
       <Aviso error={error} />
+      <CobrosHoy />
       <Seccion titulo={`Hola, ${miSocio?.nombre || ''} 👋 Esto es lo más importante hoy`} ayuda="Todo se calcula solo con lo que se registra en las otras pestañas.">
         <div className="tarjetas grandes">
           <Tarjeta titulo="💵 Dinero que tenemos" valor={usd(disponible)} tono="bueno" nota="Caja: Binance + efectivo + Bs" />

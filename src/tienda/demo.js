@@ -39,6 +39,9 @@ const info = {
   tasa: { fecha: '2026-10-21', euro: 1030 },
 }
 
+const MARCA = [['Carolina Herrera', 'mujer'], ['Paco Rabanne', 'hombre'], ['Lattafa', 'unisex'], ['Britney Spears', 'mujer'], ['Le Labo', 'unisex'], ['Ariana Grande', 'mujer'], ['Lattafa', 'hombre'], ['Bharara', 'mujer'], ['Paco Rabanne', 'hombre'], ['Lattafa', 'mujer'], ['Perry Ellis', 'hombre'], ['Valentino', 'mujer'], ['Afnan', 'mujer']]
+const NOTAS = { 'Ariana Grande Cloud': 'Salida: pera y bergamota · Corazón: coco · Fondo: praliné y vainilla', 'Santal 33': 'Sándalo, cuero, cardamomo y cedro' }
+perfumes.forEach((p, k) => { const m = MARCA[k]; if (m) { p.marca = m[0]; p.genero = m[1] } p.notas = NOTAS[p.nombre] || null })
 let cat = perfumes.map((p) => ({ ...p }))
 let n = 0
 const ok = (data) => Promise.resolve({ data, error: null })

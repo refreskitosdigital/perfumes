@@ -17,6 +17,9 @@ import Rentabilidad from './pages/Rentabilidad.jsx'
 import Gastos from './pages/Gastos.jsx'
 import Catalogo from './pages/Catalogo.jsx'
 import Vendedoras from './pages/Vendedoras.jsx'
+import ListaCompra from './pages/ListaCompra.jsx'
+import Respaldo, { diasDesdeRespaldo } from './pages/Respaldo.jsx'
+import { useCobrosHoy } from './pages/CobrosHoy.jsx'
 
 const Ctx = createContext(null)
 export const useApp = () => useContext(Ctx)
@@ -25,6 +28,7 @@ export const useApp = () => useContext(Ctx)
 const TABS = [
   ['dashboard', '🏠', 'Inicio', 'Cómo va el negocio hoy: plata, deudas y ganancias.', Dashboard],
   ['agenda', '🗓️', 'Agenda de pedidos', 'Planea lo que vas a comprar y, cuando se compre, pulsa Realizar pedido.', Agenda],
+  ['listacompra', '🛒', 'Lista de compra', 'Todo lo que hay que comprar al proveedor: pedidos de vendedoras, de la tienda y agendados, menos lo que ya tienes.', ListaCompra],
   ['compras', '📥', 'Compras', 'Historial de lo que ya se compró a los proveedores.', Compras],
   ['catalogo', '🗂️', 'Catálogo', 'Perfumes que se publican en la tienda y a las vendedoras: nombre, descripción, fotos, 3 precios y existencia (estén o no en inventario).', Catalogo],
   ['vendedoras', '🤝', 'Vendedoras', 'Pedidos de Gardimar y Wuilesmar: aprobar, ver cuánto ganan y cuánto te deben.', Vendedoras],
@@ -37,14 +41,16 @@ const TABS = [
   ['gastos', '💸', 'Gastos', 'Delivery, traslados y otros gastos que bajan la ganancia.', Gastos],
   ['caja', '🏦', 'Caja', 'El dinero que tenemos, en cada cuenta.', Caja],
   ['pagos', '🧾', 'Pagos', 'Lo que pagamos a proveedores y lo que devolvemos de los préstamos.', Pagos],
+  ['respaldo', '💾', 'Respaldo y Excel', 'Descarga todos tus datos (respaldo semanal) o cualquier tabla en Excel.', Respaldo],
   ['tasas', '💱', 'Tasa del día', 'La tasa BCV Euro de hoy (tienda y ventas) y la Binance interna. Hay que ponerla antes de vender.', Tasas],
 ]
 const GRUPOS = [
   ['', ['dashboard']],
-  ['Comprar', ['agenda', 'compras']],
+  ['Comprar', ['listacompra', 'agenda', 'compras']],
   ['Vender', ['ventas', 'vendedoras', 'tienda', 'clientes', 'cobrar']],
   ['Dinero', ['rentabilidad', 'caja', 'gastos', 'pagos', 'tasas']],
   ['Productos', ['catalogo', 'inventario']],
+  ['Sistema', ['respaldo']],
 ]
 
 function Login() {
@@ -82,6 +88,7 @@ function Shell({ session }) {
   const nuevosVend = useQuery(() => supabase.from('pedidos_vendedora').select('id').eq('estado', 'pendiente'), [])
   useEffect(() => { const t = setInterval(() => { nuevosWeb.recargar(); nuevosVend.recargar() }, 60000); return () => clearInterval(t) }, []) // eslint-disable-line
 
+  const cobrosHoy = useCobrosHoy()
   const miSocio = socio.data.find((s) => s.email.toLowerCase() === session.user.email.toLowerCase())
   const tasa = tasas.data[0] || null
   const config = cfg.data[0] || { ganancia_objetivo: 0.3, redondeo: 0.5, umbral_mayor: 6, base_ganancia: 'costo' }
@@ -121,6 +128,8 @@ function Shell({ session }) {
                     <button key={id} className={id === tab ? 'activa' : ''} onClick={() => { setTab(id); window.scrollTo({ top: 0 }) }}>
                       <span className="icono" aria-hidden="true">{t[1]}</span><span className="nombre">{t[2]}</span>
                       {id === 'tienda' && nuevosWeb.data.length > 0 && <span className="num-badge" aria-label={`${nuevosWeb.data.length} pedidos nuevos`}>{nuevosWeb.data.length}</span>}
+                      {id === 'cobrar' && cobrosHoy.cantidad > 0 && <span className="num-badge" aria-label={`${cobrosHoy.cantidad} cobros de hoy`}>{cobrosHoy.cantidad}</span>}
+                      {id === 'respaldo' && (diasDesdeRespaldo() == null || diasDesdeRespaldo() >= 7) && <span className="num-badge" aria-label="Toca respaldo semanal">!</span>}
                       {id === 'vendedoras' && nuevosVend.data.length > 0 && <span className="num-badge" aria-label={`${nuevosVend.data.length} pedidos por aprobar`}>{nuevosVend.data.length}</span>}
                     </button>
                   )

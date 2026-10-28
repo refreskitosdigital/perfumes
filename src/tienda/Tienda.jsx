@@ -26,6 +26,9 @@ export default function Tienda() {
   const [tab, setTab] = useState('detal')
   const [q, setQ] = useState('')
   const [solo, setSolo] = useState('todos')
+  const [genero, setGenero] = useState('todos')
+  const [marca, setMarca] = useState('')
+  const [ver, setVer] = useState(null)
   const [carro, setCarro] = useState(() => guardado('tienda-carro', {}))
   const [cajon, setCajon] = useState(false)
   const [agendar, setAgendar] = useState(null)
@@ -51,6 +54,17 @@ export default function Tienda() {
   useEffect(() => { if (!aviso) return; const t = setTimeout(() => setAviso(''), 3500); return () => clearTimeout(t) }, [aviso])
 
   const umbral = info?.umbral_mayor || 12
+  // Link compartible de un perfume: ?p=ID abre su ficha
+  const abierta = useRef(false)
+  useEffect(() => {
+    if (!cat || abierta.current) return
+    abierta.current = true
+    const id = new URLSearchParams(window.location.search).get('p')
+    const p = id && cat.find((x) => String(x.id) === id)
+    if (p) setVer(p)
+  }, [cat])
+  const abrirFicha = (p) => { setVer(p); try { const u = new URL(window.location.href); u.searchParams.set('p', p.id); window.history.replaceState(null, '', u) } catch { /* sin historial */ } }
+  const cerrarFicha = () => { setVer(null); try { const u = new URL(window.location.href); u.searchParams.delete('p'); window.history.replaceState(null, '', u) } catch { /* sin historial */ } }
   const tasa = info?.tasa
   const porId = useMemo(() => Object.fromEntries((cat || []).map((p) => [p.id, p])), [cat])
 
@@ -72,8 +86,10 @@ export default function Tienda() {
   })
 
   const visibles = useMemo(() => (cat || [])
-    .filter((p) => (!q || normNombre(p.nombre).includes(normNombre(q))) && (solo === 'todos' || (solo === 'disp' ? p.stock > 0 && p.precio_detal != null : p.stock === 0 || p.precio_detal == null)))
-    .sort((a, b) => ((b.stock > 0 && b.precio_detal != null) - (a.stock > 0 && a.precio_detal != null)) || a.nombre.localeCompare(b.nombre, 'es')), [cat, q, solo])
+    .filter((p) => (!q || normNombre(p.nombre + ' ' + (p.marca || '')).includes(normNombre(q))) && (genero === 'todos' || p.genero === genero) && (!marca || p.marca === marca) && (solo === 'todos' || (solo === 'disp' ? p.stock > 0 && p.precio_detal != null : p.stock === 0 || p.precio_detal == null)))
+    .sort((a, b) => ((b.stock > 0 && b.precio_detal != null) - (a.stock > 0 && a.precio_detal != null)) || a.nombre.localeCompare(b.nombre, 'es')), [cat, q, solo, genero, marca])
+  const marcas = useMemo(() => [...new Set((cat || []).map((p) => p.marca).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')), [cat])
+  const hayGenero = (cat || []).some((p) => p.genero)
   const nDisp = (cat || []).filter((p) => p.stock > 0 && p.precio_detal != null).length
 
   // Top perfumes: los más vendidos que todavía tienen stock
@@ -139,12 +155,34 @@ export default function Tienda() {
               <Icono d={<><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>} width="20" height="20" />
               <input type="search" placeholder="Busca un perfume" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Busca un perfume" />
             </label>
-            <div className="t-filtros">
+            <div className="t-filtros" role="group" aria-label="Disponibilidad">
               {[['todos', 'Todos'], ['disp', `Disponibles (${nDisp})`], ['agot', `Por agendar (${(cat || []).length - nDisp})`]].map(([k, n]) => (
                 <button key={k} className={solo === k ? 'on' : ''} onClick={() => setSolo(k)}>{n}</button>
               ))}
             </div>
           </div>
+
+          {(hayGenero || marcas.length > 1) && (
+            <div className="t-controles t-controles2">
+              {hayGenero && (
+                <div className="t-filtros" role="group" aria-label="Género">
+                  {[['todos', 'Para todos'], ['mujer', 'Mujer'], ['hombre', 'Hombre'], ['unisex', 'Unisex']].map(([k, n]) => (
+                    <button key={k} className={genero === k ? 'on' : ''} aria-pressed={genero === k} onClick={() => setGenero(k)}>{n}</button>
+                  ))}
+                </div>
+              )}
+              {marcas.length > 1 && (
+                <label className="t-marca-sel">
+                  <span>Marca</span>
+                  <select value={marca} onChange={(e) => setMarca(e.target.value)} aria-label="Filtrar por marca">
+                    <option value="">Todas las marcas</option>
+                    {marcas.map((m) => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </label>
+              )}
+              {(genero !== 'todos' || marca) && <button className="t-limpiar" onClick={() => { setGenero('todos'); setMarca('') }}>Quitar filtros</button>}
+            </div>
+          )}
 
           {tab === 'mayor' && (
             <aside className="t-mayor-info">
@@ -153,8 +191,8 @@ export default function Tienda() {
           )}
 
           <div className="t-grid">
-            {!visibles.length && <p className="t-vacio">No encontramos perfumes con ese nombre.</p>}
-            {visibles.map((p) => <Ficha key={p.id} {...{ p, tab, umbral, tasa, carro, cambiar, setAgendar }} />)}
+            {!visibles.length && <p className="t-vacio">No encontramos perfumes con esos filtros.</p>}
+            {visibles.map((p) => <Ficha key={p.id} {...{ p, tab, umbral, tasa, carro, cambiar, setAgendar, abrirFicha }} />)}
           </div>
         </div>
       </section>
@@ -255,12 +293,16 @@ export default function Tienda() {
       )}
 
       {cajon && <Cajon onCerrar={() => setCajon(false)} {...{ lineas, unidades, umbral, mayor, total, ahorro, tasa, info, precioDe, cambiar, setCarro, cargar, setListo }} />}
+      {ver && <Detalle p={cat.find((x) => x.id === ver.id) || ver} {...{ tasa, umbral, carro, cambiar, setAgendar, info, setAviso }} onCerrar={cerrarFicha} />}
       {agendar && <Agendar p={agendar} onCerrar={() => setAgendar(null)} onListo={(m) => { setAgendar(null); setAviso(m) }} />}
       {listo && <Listo r={listo} info={info} onCerrar={() => setListo(null)} />}
       {aviso && <div className="t-toast" role="status">{aviso}</div>}
     </div>
   )
 }
+
+const GENERO = { mujer: 'Para ella', hombre: 'Para él', unisex: 'Unisex' }
+const linkDe = (id) => `${window.location.origin}/p/${id}`
 
 const formatoTel = (n) => {
   const d = digitos(n)
@@ -316,7 +358,7 @@ function Hero({ info }) {
   )
 }
 
-function Ficha({ p, tab, umbral, tasa, carro, cambiar, setAgendar }) {
+function Ficha({ p, tab, umbral, tasa, carro, cambiar, setAgendar, abrirFicha }) {
   const sinPrecio = p.precio_detal == null
   const sinStock = p.stock < 1
   const agendable = sinStock || sinPrecio     // no se puede comprar ahora: se agenda y le avisamos
@@ -325,14 +367,15 @@ function Ficha({ p, tab, umbral, tasa, carro, cambiar, setAgendar }) {
   const precio = tab === 'mayor' ? num(p.precio_mayor) : num(p.precio_detal)
   return (
     <article className="t-card">
-      <div className="t-foto" style={{ background: tono.fondo }}>
+      <div className="t-foto" style={{ background: tono.fondo }} onClick={() => abrirFicha(p)}>
         {p.foto_url ? <img className="f1" src={p.foto_url} alt={p.nombre} loading="lazy" /> : <Botella nombre={p.nombre} tono={tono} />}
         {p.foto2_url && <img className="f2" src={p.foto2_url} alt={`${p.nombre}, segunda foto`} loading="lazy" />}
         {!agendable && p.stock <= 2 && <span className="t-sello poco">{p.stock === 1 ? 'Última unidad' : `Quedan ${p.stock}`}</span>}
         {p.foto2_url && <span className="t-dos" aria-hidden="true"><i /><i /></span>}
       </div>
       <div className="t-info">
-        <h3>{p.nombre}</h3>
+        <h3><button type="button" className="t-nombre-btn" onClick={() => abrirFicha(p)}>{p.nombre}</button></h3>
+        {(p.marca || p.genero) && <small className="t-meta">{[p.marca, GENERO[p.genero]].filter(Boolean).join(' · ')}</small>}
         {p.descripcion && <p className="t-desc" title={p.descripcion}>{p.descripcion}</p>}
         {sinPrecio ? (
           <div className="t-precio"><b className="t-por-confirmar">Precio por confirmar</b></div>
@@ -359,6 +402,65 @@ function Ficha({ p, tab, umbral, tasa, carro, cambiar, setAgendar }) {
           )
           : <button className="t-btn" onClick={() => cambiar(p.id, 1)}>Agregar al carrito</button>}
     </article>
+  )
+}
+
+// Ficha completa de un perfume. Tiene link propio (/p/ID) y botón para compartirlo por WhatsApp.
+function Detalle({ p, tasa, umbral, carro, cambiar, setAgendar, info, setAviso, onCerrar }) {
+  const [foto, setFoto] = useState(0)
+  const fotos = [p.foto_url, p.foto2_url].filter(Boolean)
+  const sinPrecio = p.precio_detal == null
+  const agendable = p.stock < 1 || sinPrecio
+  const tono = tonoDe(p.nombre)
+  const enCarro = carro[p.id] || 0
+  useEffect(() => {
+    const k = (e) => e.key === 'Escape' && onCerrar()
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
+  }, [onCerrar])
+  const texto = `${p.nombre}${p.marca ? ' · ' + p.marca : ''}${sinPrecio ? '' : '\nPrecio: ' + $(p.precio_detal) + (num(p.precio_mayor) < num(p.precio_detal) ? ` (al mayor ${$(p.precio_mayor)} desde ${umbral} perfumes)` : '')}` +
+    (p.descripcion ? '\n' + p.descripcion.slice(0, 140) + (p.descripcion.length > 140 ? '…' : '') : '') + `\nMíralo aquí: ${linkDe(p.id)}`
+  const copiar = async () => {
+    try { await navigator.clipboard.writeText(linkDe(p.id)); setAviso('Link copiado') } catch { setAviso(linkDe(p.id)) }
+  }
+  return (
+    <div className="t-cortina centro" onClick={onCerrar}>
+      <div className="t-modal t-detalle" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={p.nombre}>
+        <button className="t-cerrar" onClick={onCerrar} aria-label="Cerrar ficha">×</button>
+        <div className="t-det-foto" style={{ background: tono.fondo }}>
+          {fotos.length ? <img src={fotos[Math.min(foto, fotos.length - 1)]} alt={p.nombre} /> : <Botella nombre={p.nombre} tono={tono} />}
+          {fotos.length > 1 && (
+            <div className="t-det-puntos">{fotos.map((_, k) => <button key={k} className={k === foto ? 'on' : ''} onClick={() => setFoto(k)} aria-label={`Foto ${k + 1}`} />)}</div>
+          )}
+        </div>
+        <div>
+          {(p.marca || p.genero) && <small className="t-meta">{[p.marca, GENERO[p.genero]].filter(Boolean).join(' · ')}</small>}
+          <h2>{p.nombre}</h2>
+          {sinPrecio ? <p className="t-por-confirmar">Precio por confirmar</p> : (
+            <div className="t-det-precios">
+              <div><b>{$(p.precio_detal)}</b><small>al detal{tasa ? ` · ${Bs(p.precio_detal, tasa.euro)}` : ''}</small></div>
+              {num(p.precio_mayor) < num(p.precio_detal) && <div><b>{$(p.precio_mayor)}</b><small>al mayor desde {umbral} perfumes</small></div>}
+            </div>
+          )}
+          {p.descripcion && <p>{p.descripcion}</p>}
+          {p.notas && <p className="t-notas"><b>Notas:</b> {p.notas}</p>}
+          <p className="t-disp">{agendable ? (sinPrecio ? 'Agéndalo y te escribimos con el precio.' : 'Ahora no está disponible: agéndalo y te avisamos.') : p.stock <= 2 ? (p.stock === 1 ? 'Última unidad' : `Quedan ${p.stock}`) : 'Disponible'}</p>
+        </div>
+        <div className="t-acciones col">
+          {agendable
+            ? <button className="t-btn" onClick={() => { onCerrar(); setAgendar(p) }}>{sinPrecio ? 'Consultar precio' : 'Agendar pedido'}</button>
+            : enCarro
+              ? (
+                <div className="t-paso" role="group" aria-label={`Cantidad de ${p.nombre}`}>
+                  <button onClick={() => cambiar(p.id, -1)} aria-label="Quitar uno">−</button><output>{enCarro}</output>
+                  <button onClick={() => cambiar(p.id, 1)} disabled={enCarro >= p.stock} aria-label="Agregar uno">+</button>
+                </div>
+              )
+              : <button className="t-btn" onClick={() => { cambiar(p.id, 1); setAviso('Agregado: ' + p.nombre) }}>Agregar al carrito</button>}
+          <a className="t-btn sec" href={`https://wa.me/?text=${encodeURIComponent(texto)}`} target="_blank" rel="noopener noreferrer">Compartir por WhatsApp</a>
+          <button className="t-btn sec" onClick={copiar}>Copiar link</button>
+        </div>
+      </div>
+    </div>
   )
 }
 

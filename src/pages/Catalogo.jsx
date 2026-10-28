@@ -5,7 +5,7 @@ import { Seccion, Campo, Aviso, Guia, Insignia } from '../ui.jsx'
 import { usd, num, pct } from '../lib.js'
 import { reducirImagen } from '../imagen.js'
 
-const vacioNuevo = { nombre: '', descripcion: '', precio_detal: '', precio_mayor: '', precio_consigna: '', existencia_manual: '' }
+const vacioNuevo = { nombre: '', marca: '', genero: '', notas: '', tips_venta: '', descripcion: '', precio_detal: '', precio_mayor: '', precio_consigna: '', existencia_manual: '' }
 const aNum = (v) => (v === '' || v == null ? null : num(v))
 const aTexto = (v) => (v == null ? '' : String(v))
 
@@ -43,6 +43,7 @@ export default function Catalogo() {
     if (filtro === 'solo') return !enInventario(p)
     if (filtro === 'sinfoto') return !p.foto_url
     if (filtro === 'sinprecio') return p.precio_detal == null || p.precio_consigna == null
+    if (filtro === 'sinmarca') return !p.marca || !p.genero
     return true
   })
 
@@ -50,7 +51,7 @@ export default function Catalogo() {
     if (abierto === p.id) return setAbierto(null)
     setAbierto(p.id); setMsg({ error: '', ok: '' })
     setForm({
-      nombre: p.nombre, descripcion: aTexto(p.descripcion), precio_detal: aTexto(p.precio_detal), precio_mayor: aTexto(p.precio_mayor),
+      nombre: p.nombre, marca: aTexto(p.marca), genero: p.genero || '', notas: aTexto(p.notas), tips_venta: aTexto(p.tips_venta), descripcion: aTexto(p.descripcion), precio_detal: aTexto(p.precio_detal), precio_mayor: aTexto(p.precio_mayor),
       precio_consigna: aTexto(p.precio_consigna), existencia_manual: aTexto(p.existencia_manual),
       visible_tienda: p.visible_tienda, visible_vendedoras: p.visible_vendedoras,
     })
@@ -63,11 +64,12 @@ export default function Catalogo() {
     if (av.length && !window.confirm('Los precios no cuadran:\n\n• ' + av.join('\n• ') + '\n\n¿Guardar igual?')) return
     const { error } = await supabase.from('perfumes').update({
       nombre: form.nombre.trim(), descripcion: form.descripcion.trim() || null,
+      marca: form.marca.trim() || null, genero: form.genero || null, notas: form.notas.trim() || null, tips_venta: form.tips_venta.trim() || null,
       precio_detal: pr.detal, precio_mayor: pr.mayor, precio_consigna: pr.consigna,
       existencia_manual: enInventario(p) ? p.existencia_manual : (aNum(form.existencia_manual) == null ? null : Math.round(aNum(form.existencia_manual))),
       visible_tienda: form.visible_tienda, visible_vendedoras: form.visible_vendedoras,
     }).eq('id', p.id)
-    if (error) return fallo(/existencia_manual|descripcion|precio_consigna|visible_vendedoras/.test(error.message) ? new Error('Falta ejecutar migracion_v9.sql en Supabase.') : error)
+    if (error) return fallo(/existencia_manual|descripcion|precio_consigna|visible_vendedoras/.test(error.message) ? new Error('Falta ejecutar migracion_v9.sql en Supabase.') : /marca|genero|notas|tips_venta/.test(error.message) ? new Error('Falta ejecutar migracion_v10.sql en Supabase.') : error)
     ok('Perfume guardado. Ya se actualizó en la tienda y para las vendedoras.'); recargar()
   }
 
@@ -97,10 +99,11 @@ export default function Catalogo() {
     if (av.length && !window.confirm('Los precios no cuadran:\n\n• ' + av.join('\n• ') + '\n\n¿Guardar igual?')) return
     const { data, error } = await supabase.from('perfumes').insert({
       nombre: nuevo.nombre.trim(), descripcion: nuevo.descripcion.trim() || null,
+      marca: nuevo.marca.trim() || null, genero: nuevo.genero || null, notas: nuevo.notas.trim() || null, tips_venta: nuevo.tips_venta.trim() || null,
       precio_detal: pr.detal, precio_mayor: pr.mayor, precio_consigna: pr.consigna,
       existencia_manual: aNum(nuevo.existencia_manual) == null ? 0 : Math.round(aNum(nuevo.existencia_manual)),
     }).select('id').single()
-    if (error) return fallo(/perfumes_nombre_uq|duplicate/.test(error.message) ? new Error('Ya existe un perfume con ese nombre.') : /existencia_manual|descripcion|precio_consigna/.test(error.message) ? new Error('Falta ejecutar migracion_v9.sql en Supabase.') : error)
+    if (error) return fallo(/perfumes_nombre_uq|duplicate/.test(error.message) ? new Error('Ya existe un perfume con ese nombre.') : /existencia_manual|descripcion|precio_consigna/.test(error.message) ? new Error('Falta ejecutar migracion_v9.sql en Supabase.') : /marca|genero|notas|tips_venta/.test(error.message) ? new Error('Falta ejecutar migracion_v10.sql en Supabase.') : error)
     ok(`"${nuevo.nombre.trim()}" agregado al catálogo. Sube sus fotos abriéndolo abajo.`)
     setNuevo(null); recargar()
     if (data?.id) setTimeout(() => { setAbierto(null) }, 0)
@@ -130,18 +133,29 @@ export default function Catalogo() {
               <Campo label="Consignación $"><input type="number" step="0.01" min="0" inputMode="decimal" value={nuevo.precio_consigna} onChange={(e) => setNuevo({ ...nuevo, precio_consigna: e.target.value })} /></Campo>
               <Campo label="¿Cuántos tienes?" ayuda="Si no lo tienes, deja 0"><input type="number" min="0" inputMode="numeric" value={nuevo.existencia_manual} onChange={(e) => setNuevo({ ...nuevo, existencia_manual: e.target.value })} /></Campo>
             </div>
-            <Campo label="Descripción (se ve en la tienda)"><textarea rows="3" value={nuevo.descripcion} onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })} placeholder="Notas de salida, corazón y fondo, para quién es, duración…" /></Campo>
+<div className="form">
+              <Campo label="Marca"><input list="cat-marcas" value={nuevo.marca} onChange={(e) => setNuevo({ ...nuevo, marca: e.target.value })} placeholder="Ej.: Lattafa" /></Campo>
+              <Campo label="Género">
+                <select value={nuevo.genero} onChange={(e) => setNuevo({ ...nuevo, genero: e.target.value })}>
+                  <option value="">Sin definir</option><option value="mujer">Mujer</option><option value="hombre">Hombre</option><option value="unisex">Unisex</option>
+                </select>
+              </Campo>
+            </div>
+            <Campo label="Descripción (se ve en la tienda y en el link de vendedoras)"><textarea rows="3" value={nuevo.descripcion} onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })} placeholder="Para quién es, cuándo usarlo, duración…" /></Campo>
+            <Campo label="Notas y tonos (tienda y vendedoras)"><input value={nuevo.notas} onChange={(e) => setNuevo({ ...nuevo, notas: e.target.value })} placeholder="Salida: bergamota · Corazón: rosa · Fondo: ámbar" /></Campo>
+            <Campo label="Tips para vender (solo las vendedoras lo ven)"><textarea rows="2" value={nuevo.tips_venta} onChange={(e) => setNuevo({ ...nuevo, tips_venta: e.target.value })} placeholder="Ej.: ideal para regalo; huele parecido a …" /></Campo>
             <button className="primario" type="submit">Agregar al catálogo</button>
           </form>
         )}
 
+        <datalist id="cat-marcas">{[...new Set(lista.data.map((p) => p.marca).filter(Boolean))].sort().map((m) => <option key={m} value={m} />)}</datalist>
         <div className="form cat-filtros">
           <Campo label="Buscar"><input value={buscar} onChange={(e) => setBuscar(e.target.value)} placeholder="Nombre del perfume" /></Campo>
           <Campo label="Mostrar">
             <select value={filtro} onChange={(e) => setFiltro(e.target.value)}>
               <option value="todos">Todos</option><option value="tienda">Los que están en la tienda</option>
               <option value="solo">Solo catálogo (sin inventario)</option><option value="sinfoto">Sin foto</option>
-              <option value="sinprecio">Falta algún precio</option>
+              <option value="sinprecio">Falta algún precio</option><option value="sinmarca">Sin marca o sin género</option>
             </select>
           </Campo>
         </div>
@@ -188,9 +202,19 @@ export default function Catalogo() {
                       ))}
                     </div>
                     <Campo label="Nombre"><input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} /></Campo>
-                    <Campo label="Descripción (se ve en la tienda y en el link de vendedoras)">
-                      <textarea rows="4" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} placeholder="Notas de salida, corazón y fondo, para quién es, duración…" />
+<div className="form">
+                    <Campo label="Marca"><input list="cat-marcas" value={form.marca} onChange={(e) => setForm({ ...form, marca: e.target.value })} placeholder="Ej.: Lattafa" /></Campo>
+                    <Campo label="Género">
+                      <select value={form.genero} onChange={(e) => setForm({ ...form, genero: e.target.value })}>
+                        <option value="">Sin definir</option><option value="mujer">Mujer</option><option value="hombre">Hombre</option><option value="unisex">Unisex</option>
+                      </select>
                     </Campo>
+            </div>
+                    <Campo label="Descripción (se ve en la tienda y en el link de vendedoras)">
+                      <textarea rows="4" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} placeholder="Para quién es, cuándo usarlo, duración…" />
+                    </Campo>
+                    <Campo label="Notas y tonos (tienda y vendedoras)"><input value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} placeholder="Salida: bergamota · Corazón: rosa · Fondo: ámbar" /></Campo>
+                    <Campo label="Tips para vender (solo las vendedoras lo ven)"><textarea rows="2" value={form.tips_venta} onChange={(e) => setForm({ ...form, tips_venta: e.target.value })} placeholder="Ej.: ideal para regalo; huele parecido a …" /></Campo>
                     <div className="form">
                       <Campo label="🛒 Precio tienda $" ayuda={costo > 0 && form.precio_detal ? `Ganas ${pct((num(form.precio_detal) - costo) / costo)} sobre el costo` : 'Lo que paga el público'}>
                         <input type="number" step="0.01" min="0" inputMode="decimal" value={form.precio_detal} onChange={(e) => setForm({ ...form, precio_detal: e.target.value })} />

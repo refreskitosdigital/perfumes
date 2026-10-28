@@ -3,6 +3,7 @@ import { supabase } from '../supabase.js'
 import { useQuery } from '../hooks.js'
 import { Seccion, Campo, Tabla, Tarjeta, Aviso } from '../ui.jsx'
 import { hoy, usd, bs, num } from '../lib.js'
+import CobrosHoy from './CobrosHoy.jsx'
 
 export default function PorCobrar() {
   const lista = useQuery(() => supabase.from('por_cobrar_v').select('*').order('vence', { ascending: true, nullsFirst: false }), [])
@@ -29,6 +30,7 @@ export default function PorCobrar() {
 
   return (
     <>
+      <CobrosHoy />
       <Seccion titulo="Cuentas por cobrar" ayuda="Ventas con saldo pendiente. Los Bs se valoran a la tasa BCV Euro de la venta (o la que indiques al cobrar).">
         <div className="tarjetas">
           <Tarjeta titulo="Total por cobrar" valor={usd(total)} nota={`${lista.data.length} ventas`} />

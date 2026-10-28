@@ -217,3 +217,29 @@ html { scroll-behavior: smooth; }
 .tienda .t-precio .t-por-confirmar { font-size: 17px; font-weight: 400; color: var(--gris); font-family: var(--display); font-style: italic; }
 
 .tienda .t-desc { margin: 2px 0 6px; font-size: 13px; line-height: 1.4; color: var(--gris); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Filtros por género y marca, ficha del perfume */
+.tienda .t-controles2 { margin-top: 14px; }
+.tienda .t-marca-sel { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--gris); }
+.tienda .t-marca-sel select { min-height: 40px; border: 1px solid #c4c7b0; border-radius: 30px; padding: 6px 16px; background: #fff; font: inherit; color: var(--tinta); }
+.tienda .t-limpiar { background: none; border: 0; text-decoration: underline; color: var(--oliva); min-height: 40px; padding: 0 6px; }
+.tienda .t-meta { display: block; color: var(--gris); font-size: 13px; letter-spacing: .04em; }
+.tienda .t-nombre-btn { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.tienda .t-nombre-btn:hover { text-decoration: underline; text-decoration-color: var(--mg); text-underline-offset: 4px; }
+.tienda .t-foto { cursor: pointer; }
+.tienda .t-detalle { grid-auto-rows: max-content; position: relative; width: min(760px, 100%); display: grid; grid-template-columns: 1fr 1fr; gap: 22px 28px; padding: 28px; }
+.tienda .t-detalle .t-acciones { grid-column: 1 / -1; }
+.tienda .t-acciones.col { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; }
+.tienda .t-cerrar { position: absolute; top: 8px; right: 12px; width: 44px; height: 44px; font-size: 30px; background: none; border: 0; z-index: 3; line-height: 1; }
+.tienda .t-det-foto { position: relative; aspect-ratio: 4 / 5; display: grid; place-items: center; overflow: hidden; }
+.tienda .t-det-foto img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.tienda .t-det-foto .botella { width: 52%; height: auto; }
+.tienda .t-det-puntos { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 8px; z-index: 2; }
+.tienda .t-det-puntos button { width: 12px; height: 12px; border-radius: 50%; border: 1px solid var(--tinta); background: #fff; padding: 0; min-height: 0; }
+.tienda .t-det-puntos button.on { background: var(--tinta); }
+.tienda .t-det-precios { display: flex; gap: 26px; margin: 8px 0 12px; }
+.tienda .t-det-precios b { display: block; font-family: var(--display); font-size: 30px; font-weight: 500; }
+.tienda .t-det-precios small { color: var(--gris); }
+.tienda .t-notas { background: var(--mg-claro); padding: 10px 12px; }
+.tienda .t-disp { color: var(--oliva); font-weight: 500; }
+@media (max-width: 640px) { .tienda .t-detalle { grid-template-columns: 1fr; padding: 18px; } .tienda .t-det-foto { aspect-ratio: 1 / 1; } .tienda .t-modal h2 { font-size: 24px; } }

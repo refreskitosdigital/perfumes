@@ -49,6 +49,21 @@ export const bs = (v) => 'Bs ' + num(v).toLocaleString('es-VE', { minimumFractio
 export const pct = (v) => (v == null ? '—' : (num(v) * 100).toLocaleString('es-VE', { maximumFractionDigits: 1 }) + ' %')
 export const hoy = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Caracas' })
 
+// Cobro que toca hoy (o ya vencido) en un pedido de vendedora: cuánto debería llevar cobrado el cliente a esta fecha menos lo cobrado.
+// - mitades: 50 % en la fecha1 y el 100 % en la fecha2; contado: todo desde el día del pedido; otro acuerdo: sin fecha, no avisa.
+// Devuelve { monto, desde } (desde = fecha en que empezó a tocar) o null si hoy no toca cobrar nada.
+export const cobroDelDia = ({ plan, fecha1, fecha2, creado, total, cobrado }, fechaHoy = hoy()) => {
+  const t = num(total), c = num(cobrado)
+  let esperado = 0, desde = null
+  const d = (x) => (x ? String(x).slice(0, 10) : null)
+  if (plan === 'mitades') {
+    if (d(fecha2) && d(fecha2) <= fechaHoy) { esperado = t; desde = d(fecha2) }
+    else if (d(fecha1) && d(fecha1) <= fechaHoy) { esperado = t / 2; desde = d(fecha1) }
+  } else if (plan === 'contado') { esperado = t; desde = d(creado) }
+  const monto = Math.round((esperado - c) * 100) / 100
+  return monto > 0.005 && desde ? { monto, desde } : null
+}
+
 // Normaliza un nombre para agrupar clientes (sin tildes, sin mayúsculas, sin espacios dobles)
 export const normNombre = (s) =>
   String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim()

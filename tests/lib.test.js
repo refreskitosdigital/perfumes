@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { factor, descuentoMax, precioSugerido, precioPorCantidad, precioDivisa, precioBs, valorVenta, cobradoUsd } from '../src/lib.js'
+import { factor, descuentoMax, precioSugerido, precioPorCantidad, precioDivisa, precioBs, valorVenta, cobradoUsd, cobroDelDia } from '../src/lib.js'
 
 test('factor y descuento máximo', () => {
   assert.ok(Math.abs(factor(876.79, 1015) - 1.15764) < 1e-4)
@@ -48,4 +48,15 @@ test('tasaVenta usa la tasa BCV Euro y, en filas antiguas, el dólar BCV', async
   assert.equal(tasaVenta({ euro: 1030, bcv: 881, binance: 1015 }), 1030)
   assert.equal(tasaVenta({ euro: null, bcv: 881, binance: 1015 }), 881)
   assert.equal(tasaVenta(null), 0)
+})
+
+test('cobro del día de pedidos de vendedora', () => {
+  const p = { plan: 'mitades', fecha1: '2026-10-30', fecha2: '2026-11-15', creado: '2026-10-27T10:00:00Z', total: 35, cobrado: 0 }
+  assert.equal(cobroDelDia(p, '2026-10-29'), null)                       // aún no toca
+  assert.deepEqual(cobroDelDia(p, '2026-10-30'), { monto: 17.5, desde: '2026-10-30' })   // toca la primera mitad
+  assert.deepEqual(cobroDelDia({ ...p, cobrado: 17.5 }, '2026-11-02'), null)   // ya pagó la primera mitad
+  assert.deepEqual(cobroDelDia({ ...p, cobrado: 10 }, '2026-11-16'), { monto: 25, desde: '2026-11-15' })  // vencido: falta todo lo demás
+  assert.equal(cobroDelDia({ ...p, cobrado: 35 }, '2026-11-16'), null)
+  assert.deepEqual(cobroDelDia({ plan: 'contado', creado: '2026-10-27T10:00:00Z', total: 40, cobrado: 15 }, '2026-10-27'), { monto: 25, desde: '2026-10-27' })
+  assert.equal(cobroDelDia({ plan: 'otro', total: 40, cobrado: 0 }, '2026-12-01'), null)
 })

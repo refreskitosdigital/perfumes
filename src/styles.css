@@ -180,3 +180,16 @@ input.mini { width: 84px; text-align: right; padding: 5px 6px; min-height: 0; }
   .cat-precios { grid-column: 1 / -1; justify-content: space-between; }
   .cat-fila > button { grid-column: 1 / -1; }
 }
+
+/* Cobros de hoy, lista de compra, respaldo */
+.cobros-hoy { display: grid; gap: 8px; }
+.cobro-fila { display: grid; grid-template-columns: 1fr auto auto; gap: 8px 14px; align-items: center; background: #fff7e0; border: 1px solid #e6c97a; border-radius: 10px; padding: 10px 12px; }
+.cobro-fila span { display: grid; }
+.cobro-fila small { color: #666; }
+.cobro-fila a.boton, .acciones-fila button { min-height: 40px; padding: 8px 14px; border-radius: 8px; border: 1px solid #25a244; background: #fff; color: #166534; text-decoration: none; cursor: pointer; font: inherit; display: inline-flex; align-items: center; }
+.acciones-fila { display: flex; flex-wrap: wrap; gap: 8px; }
+.acciones-fila button.primario { background: #166534; color: #fff; }
+.lista-descargas { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.lista-descargas button { min-height: 44px; text-align: left; padding: 8px 12px; }
+tr.tenue td { color: #888; }
+@media (max-width: 640px) { .cobro-fila { grid-template-columns: 1fr auto; } .cobro-fila a.boton { grid-column: 1 / -1; justify-content: center; } }

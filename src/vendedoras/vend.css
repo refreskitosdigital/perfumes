@@ -85,6 +85,32 @@
 .vend .v-cobros li { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--papel); border-radius: 8px; padding: 6px 10px; }
 .vend .v-cobrar { display: grid; gap: 10px; background: var(--crema); border-radius: 12px; padding: 12px; }
 
+/* Filtros, ficha, avisos */
+.vend .v-filtros { display: grid; gap: 10px; margin-bottom: 14px; }
+.vend .v-chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.vend .v-chips button { flex: none; min-height: 42px; padding: 0 16px; border: 1px solid var(--linea); border-radius: 99px; background: #fff; color: var(--tinta); cursor: pointer; }
+.vend .v-chips button.on { background: var(--tinta); color: var(--oro); border-color: var(--tinta); }
+.vend button.v-foto { width: 100%; border: 0; padding: 0; cursor: pointer; }
+.vend .v-foto.grande { aspect-ratio: 4 / 3; position: relative; }
+.vend .v-nombre { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.vend .v-cortina { position: fixed; inset: 0; z-index: 20; background: rgba(15, 20, 8, .6); display: flex; align-items: flex-end; justify-content: center; }
+.vend .v-modal { grid-auto-rows: max-content; position: relative; width: min(560px, 100%); max-height: 92vh; overflow-y: auto; background: var(--papel); border-radius: 18px 18px 0 0; padding: 18px 16px 28px; display: grid; gap: 10px; align-content: start; }
+.vend .v-modal h2 { font-size: 24px; padding-right: 40px; }
+.vend .v-modal h3 { font-size: 16px; margin-top: 4px; }
+.vend .v-modal p { margin: 0; }
+.vend .v-cerrar { position: absolute; top: 8px; right: 8px; width: 44px; height: 44px; border: 0; background: rgba(255, 255, 255, .9); border-radius: 50%; font-size: 26px; line-height: 1; cursor: pointer; z-index: 2; }
+.vend .v-puntos { position: absolute; bottom: 8px; left: 0; right: 0; display: flex; justify-content: center; gap: 8px; }
+.vend .v-puntos button { width: 12px; height: 12px; min-height: 0; padding: 0; border-radius: 50%; border: 1px solid var(--tinta); background: #fff; }
+.vend .v-puntos button.on { background: var(--tinta); }
+.vend .v-tips { background: var(--crema); border-radius: 12px; padding: 12px; }
+.vend a.v-btn { display: grid; place-items: center; text-decoration: none; }
+.vend .v-avisar { display: grid; gap: 8px; }
+.vend .v-hoy { background: #fff7e0; border: 1px solid var(--oro); border-radius: 14px; padding: 12px; margin-bottom: 16px; display: grid; gap: 10px; }
+.vend .v-hoy h2 { font-size: 18px; }
+.vend .v-hoy-fila { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center; }
+.vend .v-hoy-fila span { display: grid; }
+.vend .v-hoy-fila .v-btn { grid-column: 1 / -1; margin: 0; }
+@media (min-width: 700px) { .vend .v-cortina { align-items: center; } .vend .v-modal { border-radius: 18px; } }
 @media (max-width: 520px) {
   .vend .v-totales { grid-template-columns: 1fr; }
   .vend .v-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
