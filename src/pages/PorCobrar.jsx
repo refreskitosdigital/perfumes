@@ -19,9 +19,10 @@ export default function PorCobrar() {
 
   const cobrar = async (e, r) => {
     e.preventDefault()
+    if (f.cuenta === 'bs' && !(num(f.tasa) > 0)) return setMsg({ error: 'Escribe la tasa BCV a la que pagó en bolívares.', ok: '' })
     const { error } = await supabase.from('cobros').insert({
       venta_id: r.id, fecha: f.fecha, cuenta: f.cuenta, monto: num(f.monto),
-      tasa_binance: f.cuenta === 'bs' && f.tasa ? num(f.tasa) : null,
+      tasa_bcv: f.cuenta === 'bs' ? num(f.tasa) : null,
     })
     if (error) return setMsg({ error: error.message, ok: '' })
     setMsg({ error: '', ok: `Cobro registrado a ${r.cliente}.` })
@@ -31,7 +32,7 @@ export default function PorCobrar() {
   return (
     <>
       <CobrosHoy />
-      <Seccion titulo="Cuentas por cobrar" ayuda="Ventas con saldo pendiente. Los Bs se valoran a la tasa BCV Euro de la venta (o la que indiques al cobrar).">
+      <Seccion titulo="Cuentas por cobrar" ayuda="Ventas con saldo pendiente. Todo en dólares. Si pagan en Bs, anota la tasa BCV a la que pagaron: así se calcula la merma.">
         <div className="tarjetas">
           <Tarjeta titulo="Total por cobrar" valor={usd(total)} nota={`${lista.data.length} ventas`} />
           <Tarjeta titulo="Vencido" valor={usd(vencido)} tono={vencido > 0 ? 'malo' : ''} />
@@ -61,10 +62,10 @@ export default function PorCobrar() {
                             <option value="efectivo">$ efectivo</option><option value="binance">$ Binance</option><option value="bs">Bs</option>
                           </select>
                         </Campo>
-                        <Campo label={f.cuenta === 'bs' ? 'Monto en Bs' : 'Monto $'} ayuda={f.cuenta === 'bs' ? 'Ej. pendiente × tasa BCV Euro' : ''}>
+                        <Campo label={f.cuenta === 'bs' ? 'Monto en Bs' : 'Monto $'} ayuda={f.cuenta === 'bs' && num(f.tasa) > 0 ? `= ${usd(num(f.monto) / num(f.tasa))}` : ''}>
                           <input type="number" step="0.01" min="0" value={f.monto} onChange={(e) => setF({ ...f, monto: e.target.value })} required />
                         </Campo>
-                        {f.cuenta === 'bs' && <Campo label="Tasa BCV Euro del día" ayuda="Vacío = la de la venta"><input type="number" step="0.01" value={f.tasa} onChange={(e) => setF({ ...f, tasa: e.target.value })} /></Campo>}
+                        {f.cuenta === 'bs' && <Campo label="Tasa BCV a la que pagó (Bs por $)"><input type="number" step="0.01" min="0" value={f.tasa} onChange={(e) => setF({ ...f, tasa: e.target.value })} required /></Campo>}
                         <button className="primario" type="submit">Guardar cobro</button>
                       </form>
                     </td></tr>

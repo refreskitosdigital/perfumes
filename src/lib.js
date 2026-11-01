@@ -36,9 +36,11 @@ export function precioPorCantidad(perfume, unidades, umbral = 6) {
   return num(unidades) >= umbral ? mayor : detal
 }
 
-// Valor real de una venta en $. Si el precio está en BCV$, equivale a total × BCV / Binance
-export const valorVenta = (base, total, bcv, binance) =>
-  base === 'bcv' && num(binance) > 0 ? (num(total) * num(bcv)) / num(binance) : num(total)
+// Todo se maneja en dólares nominales: $35 son $35. La brecha cambiaria aparece como merma al cobrar en Bs.
+export const valorVenta = (base, total) => num(total)
+
+// Dólares que representa un cobro en Bs: Bs ÷ tasa BCV a la que pagó el cliente
+export const bsADolares = (monto, tasaBcv) => (num(tasaBcv) > 0 ? num(monto) / num(tasaBcv) : 0)
 
 // Lo cobrado en $: los Bs se valoran con la tasa Binance (con la que se repone la divisa)
 export const cobradoUsd = ({ bs = 0, efectivo = 0, binance = 0 }, tasaBinance) =>

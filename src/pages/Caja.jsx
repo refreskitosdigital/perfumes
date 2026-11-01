@@ -64,7 +64,7 @@ export default function Caja() {
 
   return (
     <>
-      <Seccion titulo="Saldos" ayuda="Ventas cobradas por cuenta más los movimientos que registres aquí (pago a proveedor, retiros, conversiones).">
+      <Seccion titulo="Saldos" ayuda="Cobros por cuenta, menos gastos y pagos, más los movimientos que registres aquí. Todo en dólares; los Bs se muestran en Bs.">
         <div className="tarjetas">
           <Tarjeta titulo="Efectivo ($)" valor={usd(saldo('efectivo'))} />
           <Tarjeta titulo="Binance ($)" valor={usd(saldo('binance'))} />

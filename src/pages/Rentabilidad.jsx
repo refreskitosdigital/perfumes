@@ -32,7 +32,7 @@ export default function Rentabilidad() {
   const inv = useQuery(() => supabase.from('inventario_v').select('stock,costo'), [])
   const caja = useQuery(() => supabase.from('caja_v').select('*'), [])
   const pre = useQuery(() => supabase.from('prestamos').select('monto,devuelto'), [])
-  const mer = useQuery(() => supabase.from('conversiones_v').select('merma_usd'), [])
+  const mer = useQuery(() => supabase.from('merma_pedido_v').select('pedido_codigo,merma_usd'), [])
   const [modo, setModo] = useState('semana')
 
   const suma = (arr, k) => arr.reduce((a, r) => a + num(r[k]), 0)
@@ -44,6 +44,7 @@ export default function Rentabilidad() {
   const gastosTot = suma(gas.data, 'monto')
   const merma = suma(mer.data, 'merma_usd')
   const neta = bruta - gastosTot - merma
+  const mermaDe = (codigo) => num(mer.data.find((m) => m.pedido_codigo === codigo)?.merma_usd)
   const stockCosto = inv.data.reduce((a, r) => a + Math.max(num(r.stock), 0) * num(r.costo), 0)
   const enCaja = cajaUsd(caja.data, tasa?.binance)
   const deuda = pre.data.reduce((a, r) => a + num(r.monto) - num(r.devuelto), 0)
@@ -92,7 +93,7 @@ export default function Rentabilidad() {
           <Tarjeta titulo="Cobrado" valor={usd(cobrado)} nota={vendido ? `${pct(cobrado / vendido)} de lo vendido` : ''} />
           <Tarjeta titulo="Por cobrar" valor={usd(porCobrar)} tono={porCobrar > 0 ? 'malo' : ''} />
           <Tarjeta titulo="Gastos" valor={usd(gastosTot)} tono={gastosTot > 0 ? 'malo' : ''} nota="Delivery, traslados, etc." />
-          <Tarjeta titulo="Merma por cambio" valor={usd(merma)} tono={merma > 0 ? 'malo' : ''} nota="Lo que se pierde al convertir Bs en divisa (se resta de la neta)" />
+          <Tarjeta titulo="Merma por cambio" valor={usd(merma)} tono={merma > 0 ? 'malo' : ''} nota="Lo que se pierde por cobrar en Bs a tasa BCV (se resta de la neta)" />
           <Tarjeta titulo="Mercancía en stock (a costo)" valor={usd(stockCosto)} />
           <Tarjeta titulo="Préstamos por devolver" valor={usd(deuda)} tono={deuda > 0 ? 'malo' : ''} />
         </div>
@@ -140,8 +141,9 @@ export default function Rentabilidad() {
           { k: 'pendiente_usd', t: 'Por cobrar', num: true, f: (r) => (num(r.pendiente_usd) > 0.01 ? <b className="alerta">{usd(r.pendiente_usd)}</b> : '') },
           { k: 'ganancia_bruta', t: 'Ganancia', num: true, f: (r) => usd(r.ganancia_bruta) },
           { k: 'gastos', t: 'Gastos', num: true, f: (r) => usd(r.gastos) },
-          { k: 'ganancia_neta', t: 'Neta', num: true, f: (r) => <b className={num(r.ganancia_neta) >= 0 ? 'bueno' : 'alerta'}>{usd(r.ganancia_neta)}</b> },
-          { k: 'roi', t: '% s/ inversión', num: true, f: (r) => (num(r.inversion) > 0 ? pct(num(r.ganancia_neta) / num(r.inversion)) : '—') },
+          { k: 'merma', t: 'Merma', num: true, f: (r) => { const m = mermaDe(r.codigo); return m ? <span className="alerta">{usd(m)}</span> : '' } },
+          { k: 'ganancia_neta', t: 'Neta', num: true, f: (r) => <b className={num(r.ganancia_neta) - mermaDe(r.codigo) >= 0 ? 'bueno' : 'alerta'}>{usd(num(r.ganancia_neta) - mermaDe(r.codigo))}</b> },
+          { k: 'roi', t: '% s/ inversión', num: true, f: (r) => (num(r.inversion) > 0 ? pct((num(r.ganancia_neta) - mermaDe(r.codigo)) / num(r.inversion)) : '—') },
         ]} />
       </Seccion>
 

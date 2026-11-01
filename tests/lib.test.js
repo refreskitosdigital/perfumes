@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { factor, descuentoMax, precioSugerido, precioPorCantidad, precioDivisa, precioBs, valorVenta, cobradoUsd, cobroDelDia } from '../src/lib.js'
+import { factor, descuentoMax, precioSugerido, precioPorCantidad, precioDivisa, precioBs, valorVenta, bsADolares, cobradoUsd, cobroDelDia } from '../src/lib.js'
 
 test('factor y descuento máximo', () => {
   assert.ok(Math.abs(factor(876.79, 1015) - 1.15764) < 1e-4)
@@ -22,12 +22,12 @@ test('divisa vs Bs', () => {
   assert.ok(Math.abs(precioDivisa(35, 876.79, 1015) - 30.2333) < 1e-3)
   assert.ok(Math.abs(precioBs(35, 876.79) - 30687.65) < 1e-2)
 })
-test('valor real de la venta y cobros en Bs', () => {
-  assert.equal(valorVenta('divisa', 40, 881, 1015), 40)
-  assert.ok(Math.abs(valorVenta('bcv', 36, 881, 1015) - 31.2473) < 1e-3)       // Gina: 4 splash a $9 BCV
-  const cobrado = cobradoUsd({ bs: 18 * 881 }, 1015)                           // pagó $18 en Bs
-  assert.ok(Math.abs(cobrado - 15.6237) < 1e-3)
-  assert.ok(Math.abs(valorVenta('bcv', 36, 881, 1015) - cobrado - 15.6237) < 1e-3) // lo que debe
+test('todo en dólares nominales y cobros en Bs a la tasa BCV pagada', () => {
+  assert.equal(valorVenta('divisa', 40), 40)
+  assert.equal(valorVenta('bcv', 36), 36)                       // $36 son $36, sin importar la tasa
+  assert.ok(Math.abs(bsADolares(18 * 881, 881) - 18) < 1e-9)     // pagó $18 en Bs a BCV 881
+  assert.ok(Math.abs(valorVenta('bcv', 36) - bsADolares(18 * 881, 881) - 18) < 1e-9) // lo que debe
+  assert.equal(bsADolares(1000, 0), 0)
   assert.equal(cobradoUsd({ efectivo: 20, binance: 5 }, 1015), 25)
 })
 

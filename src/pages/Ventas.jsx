@@ -21,6 +21,7 @@ export default function Ventas() {
   const [lineas, setLineas] = useState([linea()])
   const [plan, setPlan] = useState('todo')
   const [cuenta, setCuenta] = useState('efectivo')
+  const [tasaPago, setTasaPago] = useState('')
   const [parte, setParte] = useState('')
   const [fecha1, setFecha1] = useState(sumarDias(hoy(), 7))
   const [fecha2, setFecha2] = useState(sumarDias(hoy(), 22))
@@ -78,7 +79,7 @@ export default function Ventas() {
     const filas = validas.map((l) => ({
       fecha, cliente: cliente.trim(), vendedor, perfume_id: Number(l.perfume_id),
       pedido_codigo: l.pedido || null, unidades: Number(l.unidades), precio_unit: num(l.precio), base: 'divisa',
-      tasa_bcv: tv, tasa_binance: tv, vence: vence || null, nota: notaFinal,
+      tasa_bcv: tv, tasa_binance: num(tasa.binance) || tv, vence: vence || null, nota: notaFinal,
     }))
     const { data, error } = await supabase.from('ventas').insert(filas).select('id')
     if (error) { setGuardando(false); return setMsg({ error: error.message, ok: '' }) }
@@ -91,7 +92,8 @@ export default function Ventas() {
         const valor = num(validas[i].unidades) * num(validas[i].precio)
         const usdI = i === data.length - 1 ? restante : Math.round(((cobrarAhora * valor) / tot) * 100) / 100
         restante = Math.round((restante - usdI) * 100) / 100
-        return { venta_id: v.id, fecha, cuenta, monto: cuenta === 'bs' ? Math.round(usdI * tv * 100) / 100 : usdI }
+        const tp = num(tasaPago) > 0 ? num(tasaPago) : tv
+        return { venta_id: v.id, fecha, cuenta, monto: cuenta === 'bs' ? Math.round(usdI * tp * 100) / 100 : usdI, tasa_bcv: cuenta === 'bs' ? tp : null }
       }).filter((c) => c.monto > 0)
       if (cobros.length) {
         const { error: e2 } = await supabase.from('cobros').insert(cobros)
@@ -180,11 +182,14 @@ export default function Ventas() {
                   <select value={cuenta} onChange={(e) => setCuenta(e.target.value)}>
                     <option value="efectivo">$ Efectivo</option>
                     <option value="binance">$ Binance</option>
-                    <option value="bs">Bs (a tasa BCV Euro)</option>
+                    <option value="bs">Bs (a la tasa BCV que pagó)</option>
                   </select>
                 </Campo>
               )}
-              {plan === 'parte' && <Campo label="Monto que pagó en $" ayuda={cobrarAhora > 0 && cuenta === 'bs' ? bs(cobrarAhora * tv) : ''}><input type="number" step="0.01" min="0" inputMode="decimal" value={parte} onChange={(e) => setParte(e.target.value)} /></Campo>}
+              {(plan === 'todo' || plan === 'parte') && cuenta === 'bs' && (
+                <Campo label="Tasa BCV a la que pagó (Bs por $)" ayuda={`Vacío = ${tv}`}><input type="number" step="0.01" min="0" inputMode="decimal" value={tasaPago} onChange={(e) => setTasaPago(e.target.value)} /></Campo>
+              )}
+              {plan === 'parte' && <Campo label="Monto que pagó en $" ayuda={cobrarAhora > 0 && cuenta === 'bs' ? bs(cobrarAhora * (num(tasaPago) > 0 ? num(tasaPago) : tv)) : ''}><input type="number" step="0.01" min="0" inputMode="decimal" value={parte} onChange={(e) => setParte(e.target.value)} /></Campo>}
               {plan === 'mitades' && <>
                 <Campo label="Primer pago (50 %)" ayuda={usd(total / 2)}><input type="date" value={fecha1} onChange={(e) => setFecha1(e.target.value)} required /></Campo>
                 <Campo label="Segundo pago (50 %)" ayuda={usd(total / 2)}><input type="date" value={fecha2} onChange={(e) => setFecha2(e.target.value)} required /></Campo>
@@ -210,7 +215,7 @@ export default function Ventas() {
           { k: 'fecha', t: 'Fecha' }, { k: 'cliente', t: 'Cliente' }, { k: 'vendedor', t: 'Vendedor' },
           { k: 'nombre', t: 'Perfume' }, { k: 'unidades', t: 'Unid.', num: true },
           { k: 'pedido_codigo', t: 'Pedido', f: (r) => r.pedido_codigo || 'anticipada' },
-          { k: 'total_pactado', t: 'Pactado', num: true, f: (r) => usd(r.total_pactado) + (r.base === 'bcv' ? ' BCV' : '') },
+          { k: 'total_pactado', t: 'Pactado', num: true, f: (r) => usd(r.total_pactado) },
           { k: 'valor_usd', t: 'Valor $', num: true, f: (r) => usd(r.valor_usd) },
           { k: 'cobrado_usd', t: 'Cobrado', num: true, f: (r) => usd(r.cobrado_usd) },
           { k: 'pendiente_usd', t: 'Pendiente', num: true, f: (r) => (r.pendiente_usd > 0.01 ? <b className="alerta">{usd(r.pendiente_usd)}</b> : '') },

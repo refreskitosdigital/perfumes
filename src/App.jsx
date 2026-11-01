@@ -7,9 +7,8 @@ import Agenda from './pages/Agenda.jsx'
 import Compras from './pages/Compras.jsx'
 import Ventas from './pages/Ventas.jsx'
 import Inventario from './pages/Inventario.jsx'
-import Caja from './pages/Caja.jsx'
+import Finanzas from './pages/Finanzas.jsx'
 import PorCobrar from './pages/PorCobrar.jsx'
-import Tasas from './pages/Tasas.jsx'
 import Clientes from './pages/Clientes.jsx'
 import Pagos from './pages/Pagos.jsx'
 import TiendaOnline from './pages/TiendaOnline.jsx'
@@ -39,16 +38,15 @@ const TABS = [
   ['inventario', '📦', 'Inventario', 'Qué perfumes hay, cuáles se acaban y cuánto ganamos con cada uno.', Inventario],
   ['rentabilidad', '📊', 'Rentabilidad', 'Cuánto ganamos: total, por semana y mes, por pedido y por socio.', Rentabilidad],
   ['gastos', '💸', 'Gastos', 'Delivery, traslados y otros gastos que bajan la ganancia.', Gastos],
-  ['caja', '🏦', 'Caja', 'El dinero que tenemos, en cada cuenta.', Caja],
+  ['finanzas', '🏦', 'Finanzas', 'Caja, compra de divisa, tasas (BCV $, BCV Euro y Binance), brecha cambiaria y merma por pedido.', Finanzas],
   ['pagos', '🧾', 'Pagos', 'Lo que pagamos a proveedores y lo que devolvemos de los préstamos.', Pagos],
   ['respaldo', '💾', 'Respaldo y Excel', 'Descarga todos tus datos (respaldo semanal) o cualquier tabla en Excel.', Respaldo],
-  ['tasas', '💱', 'Tasa del día', 'La tasa BCV Euro de hoy (tienda y ventas) y la Binance interna. Hay que ponerla antes de vender.', Tasas],
 ]
 const GRUPOS = [
   ['', ['dashboard']],
   ['Comprar', ['listacompra', 'agenda', 'compras']],
   ['Vender', ['ventas', 'vendedoras', 'tienda', 'clientes', 'cobrar']],
-  ['Dinero', ['rentabilidad', 'caja', 'gastos', 'pagos', 'tasas']],
+  ['Finanzas', ['rentabilidad', 'finanzas', 'gastos', 'pagos']],
   ['Productos', ['catalogo', 'inventario']],
   ['Sistema', ['respaldo']],
 ]
@@ -113,7 +111,7 @@ function Shell({ session }) {
         <header className="barra">
           <div className="marca">🌸 Perfumes <span>{nombresSocios.join(' · ')}</span></div>
           <div className="tasa-pill" title="Con esta tasa se calculan los precios y los Bs">
-            {tasa ? <>Tasa de hoy · BCV Euro <b>{tasaVenta(tasa)}</b> · Binance (interna) <b>{tasa.binance}</b></> : <button className="link" onClick={() => setTab('tasas')}>⚠️ Falta la tasa de hoy</button>}
+            {tasa ? <>Tasa de hoy · BCV $ <b>{tasa.bcv || '—'}</b> · Euro <b>{tasa.euro || '—'}</b> · Binance <b>{tasa.binance}</b></> : <button className="link" onClick={() => { window.__finSub = 'tasas'; setTab('finanzas') }}>⚠️ Falta la tasa de hoy</button>}
           </div>
           <div className="usuario">👤 {miSocio?.nombre} <button onClick={() => supabase.auth.signOut()}>Salir</button></div>
         </header>

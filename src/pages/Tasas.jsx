@@ -11,7 +11,7 @@ export default function Tasas() {
   const guardar = async (e) => {
     e.preventDefault()
     const fila = { fecha: f.fecha, euro: Number(f.euro), binance: Number(f.binance) }
-    if (Number(f.bcv) > 0) fila.bcv = Number(f.bcv)
+    fila.bcv = Number(f.bcv)
     const { error } = await supabase.from('tasas').upsert(fila)
     if (error) return setMsg({ error: /euro/.test(error.message) ? 'Falta ejecutar migracion_v6.sql en Supabase.' : error.message, ok: '' })
     setMsg({ error: '', ok: 'Tasa guardada. La tienda online ya muestra la nueva tasa BCV Euro.' })
@@ -24,7 +24,7 @@ export default function Tasas() {
         <Campo label="Fecha"><input type="date" value={f.fecha} onChange={(e) => setF({ ...f, fecha: e.target.value })} required /></Campo>
         <Campo label="BCV Euro (Bs por €) · tienda y ventas"><input type="number" step="0.01" min="0" value={f.euro} onChange={(e) => setF({ ...f, euro: e.target.value })} required /></Campo>
         <Campo label="Binance (Bs por $) · solo interna"><input type="number" step="0.01" min="0" value={f.binance} onChange={(e) => setF({ ...f, binance: e.target.value })} required /></Campo>
-        <Campo label="BCV $ (Bs por dólar) · interna, para la merma"><input type="number" step="0.01" min="0" value={f.bcv} onChange={(e) => setF({ ...f, bcv: e.target.value })} placeholder="Opcional" /></Campo>
+        <Campo label="BCV $ (Bs por dólar) · interna"><input type="number" step="0.01" min="0" value={f.bcv} onChange={(e) => setF({ ...f, bcv: e.target.value })} required /></Campo>
         <button className="primario" type="submit">Guardar tasa</button>
       </form>
       <Aviso {...msg} />
@@ -32,7 +32,7 @@ export default function Tasas() {
         { k: 'fecha', t: 'Fecha' },
         { k: 'v', t: 'BCV Euro (venta)', num: true, f: (r) => tasaVenta(r).toLocaleString('es-VE') + (r.euro ? '' : ' (dólar BCV, antigua)') },
         { k: 'binance', t: 'Binance (interna)', num: true },
-        { k: 'bcv', t: 'BCV $ (interna)', num: true, f: (r) => (r.euro && r.bcv ? r.bcv : r.euro ? '—' : '(es la de venta)') },
+        { k: 'bcv', t: 'BCV $ (interna)', num: true, f: (r) => (r.euro && r.bcv ? r.bcv : r.euro ? '—' : r.bcv) },
       ]} />
     </Seccion>
   )

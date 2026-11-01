@@ -183,10 +183,10 @@ function Detalle({ c, cerrar, recargar, recargarVentas }) {
 function EditarVenta({ l, listo, cerrar }) {
   const cobros = useQuery(() => supabase.from('cobros').select('*').eq('venta_id', l.id).order('fecha').order('id'), [l.id])
   const [v, setV] = useState({ fecha: String(l.fecha).slice(0, 10), unidades: l.unidades, precio_unit: l.precio_unit })
-  const [nuevo, setNuevo] = useState({ fecha: String(l.fecha).slice(0, 10), cuenta: 'efectivo', monto: '', tasa_binance: '' })
+  const [nuevo, setNuevo] = useState({ fecha: String(l.fecha).slice(0, 10), cuenta: 'efectivo', monto: '', tasa_bcv: '' })
   const [msg, setMsg] = useState({ error: '', ok: '' })
   const [filas, setFilas] = useState([])
-  useEffect(() => { setFilas(cobros.data.map((c) => ({ ...c, fecha: String(c.fecha).slice(0, 10), tasa_binance: c.tasa_binance ?? '' }))) }, [cobros.data])
+  useEffect(() => { setFilas(cobros.data.map((c) => ({ ...c, fecha: String(c.fecha).slice(0, 10), tasa_bcv: c.tasa_bcv ?? '' }))) }, [cobros.data])
   const moneda = (c) => (c === 'bs' ? 'Bs' : '$')
   const fin = (r) => { if (r.error) setMsg({ error: r.error.message, ok: '' }); else { setMsg({ error: '', ok: 'Guardado.' }); cobros.recargar(); listo() } }
 
@@ -197,7 +197,7 @@ function EditarVenta({ l, listo, cerrar }) {
   const cambiar = (id, k, val) => setFilas((fs) => fs.map((f) => (f.id === id ? { ...f, [k]: val } : f)))
   const guardarCobro = async (f) => {
     if (!(num(f.monto) > 0)) return setMsg({ error: 'El monto del cobro debe ser mayor a 0.', ok: '' })
-    fin(await supabase.from('cobros').update({ fecha: f.fecha, cuenta: f.cuenta, monto: num(f.monto), tasa_binance: f.cuenta === 'bs' && num(f.tasa_binance) > 0 ? num(f.tasa_binance) : null }).eq('id', f.id))
+    fin(await supabase.from('cobros').update({ fecha: f.fecha, cuenta: f.cuenta, monto: num(f.monto), tasa_bcv: f.cuenta === 'bs' && num(f.tasa_bcv) > 0 ? num(f.tasa_bcv) : null }).eq('id', f.id))
   }
   const borrarCobro = async (f) => {
     if (!window.confirm(`¿Eliminar el cobro de ${moneda(f.cuenta)} ${num(f.monto).toLocaleString('es-VE')} del ${f.fecha}?`)) return
@@ -205,8 +205,9 @@ function EditarVenta({ l, listo, cerrar }) {
   }
   const agregarCobro = async () => {
     if (!(num(nuevo.monto) > 0)) return setMsg({ error: 'Escribe el monto del cobro.', ok: '' })
-    const r = await supabase.from('cobros').insert({ venta_id: l.id, fecha: nuevo.fecha, cuenta: nuevo.cuenta, monto: num(nuevo.monto), tasa_binance: nuevo.cuenta === 'bs' && num(nuevo.tasa_binance) > 0 ? num(nuevo.tasa_binance) : null })
-    fin(r); if (!r.error) setNuevo({ ...nuevo, monto: '', tasa_binance: '' })
+    if (nuevo.cuenta === 'bs' && !(num(nuevo.tasa_bcv) > 0)) return setMsg({ error: 'Escribe la tasa BCV a la que pagó en bolívares.', ok: '' })
+    const r = await supabase.from('cobros').insert({ venta_id: l.id, fecha: nuevo.fecha, cuenta: nuevo.cuenta, monto: num(nuevo.monto), tasa_bcv: nuevo.cuenta === 'bs' && num(nuevo.tasa_bcv) > 0 ? num(nuevo.tasa_bcv) : null })
+    fin(r); if (!r.error) setNuevo({ ...nuevo, monto: '', tasa_bcv: '' })
   }
 
   return (
@@ -215,10 +216,10 @@ function EditarVenta({ l, listo, cerrar }) {
       <div className="form">
         <Campo label="Fecha"><input type="date" value={v.fecha} onChange={(e) => setV({ ...v, fecha: e.target.value })} /></Campo>
         <Campo label="Unidades"><input type="number" min="1" step="1" value={v.unidades} onChange={(e) => setV({ ...v, unidades: e.target.value })} /></Campo>
-        <Campo label={`Precio por unidad (${l.base === 'bcv' ? 'BCV$' : '$'})`}><input type="number" min="0" step="0.01" value={v.precio_unit} onChange={(e) => setV({ ...v, precio_unit: e.target.value })} /></Campo>
+        <Campo label={`Precio por unidad ($)`}><input type="number" min="0" step="0.01" value={v.precio_unit} onChange={(e) => setV({ ...v, precio_unit: e.target.value })} /></Campo>
         <button className="primario" onClick={guardarVenta}>Guardar venta</button>
       </div>
-      <p className="ayuda">Total de la venta: <b>{usd(num(v.unidades) * num(v.precio_unit))}{l.base === 'bcv' ? ' BCV$' : ''}</b>. Si cambias las unidades, el inventario se ajusta solo.</p>
+      <p className="ayuda">Total de la venta: <b>{usd(num(v.unidades) * num(v.precio_unit))}</b>. Si cambias las unidades, el inventario se ajusta solo.</p>
       <h4>Cobros de esta venta</h4>
       {!filas.length && <p className="vacio">Esta venta no tiene cobros registrados.</p>}
       {filas.map((f) => (
@@ -230,7 +231,7 @@ function EditarVenta({ l, listo, cerrar }) {
             </select>
           </Campo>
           <Campo label={`Monto (${moneda(f.cuenta)})`}><input type="number" min="0" step="0.01" value={f.monto} onChange={(e) => cambiar(f.id, 'monto', e.target.value)} /></Campo>
-          {f.cuenta === 'bs' && <Campo label="Tasa Binance" ayuda="Vacío = la de la venta"><input type="number" min="0" step="0.01" value={f.tasa_binance} onChange={(e) => cambiar(f.id, 'tasa_binance', e.target.value)} /></Campo>}
+          {f.cuenta === 'bs' && <Campo label="Tasa BCV que pagó" ayuda={num(f.tasa_bcv) > 0 ? `= ${usd(num(f.monto) / num(f.tasa_bcv))}` : 'Falta la tasa'}><input type="number" min="0" step="0.01" value={f.tasa_bcv} onChange={(e) => cambiar(f.id, 'tasa_bcv', e.target.value)} /></Campo>}
           <button className="primario" onClick={() => guardarCobro(f)}>Guardar</button>
           <button onClick={() => borrarCobro(f)} aria-label="Eliminar cobro">🗑️</button>
         </div>
@@ -243,7 +244,7 @@ function EditarVenta({ l, listo, cerrar }) {
           </select>
         </Campo>
         <Campo label={`Monto (${moneda(nuevo.cuenta)})`}><input type="number" min="0" step="0.01" value={nuevo.monto} onChange={(e) => setNuevo({ ...nuevo, monto: e.target.value })} /></Campo>
-        {nuevo.cuenta === 'bs' && <Campo label="Tasa Binance"><input type="number" min="0" step="0.01" value={nuevo.tasa_binance} onChange={(e) => setNuevo({ ...nuevo, tasa_binance: e.target.value })} /></Campo>}
+        {nuevo.cuenta === 'bs' && <Campo label="Tasa BCV que pagó"><input type="number" min="0" step="0.01" value={nuevo.tasa_bcv} onChange={(e) => setNuevo({ ...nuevo, tasa_bcv: e.target.value })} /></Campo>}
         <button onClick={agregarCobro}>Agregar cobro</button>
       </div>
       <Aviso {...msg} />
