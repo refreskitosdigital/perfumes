@@ -6,6 +6,7 @@ import { useApp } from '../App.jsx'
 import { Seccion, Aviso, Guia, Insignia } from '../ui.jsx'
 import { usd, pct, precioSugerido, num, normNombre, hoy } from '../lib.js'
 import { crearListaPdf } from '../pdf.js'
+import OrdenTienda from './OrdenTienda.jsx'
 
 const fechaLarga = () => new Date().toLocaleDateString('es-VE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Caracas' })
 
@@ -132,7 +133,7 @@ export default function Inventario() {
           ))}
         </div>
         <div className="form">
-          <label className="campo"><span>Nombre del perfume</span>
+          <label className="campo"><span>Nombre del perfume (se cambia en la tienda y en todo el sistema)</span>
             <input defaultValue={r.nombre} onBlur={(e) => guardarNombre(r, e.target.value)} /></label>
           <label className="campo"><span>Precio al detal $</span>
             <input type="number" step="0.5" min="0" defaultValue={r.precio_detal ?? ''} onBlur={(e) => { if (String(r.precio_detal ?? '') !== e.target.value) editarPrecio(r.id, 'precio_detal', e.target.value) }} /></label>
@@ -163,6 +164,8 @@ export default function Inventario() {
     <>
       <Guia>Aquí ves qué perfumes tienes y a cuánto los vendes. Toca <b>✏️ Editar</b> en cualquier perfume para corregir lo que te costó (por ejemplo, si te hicieron una rebaja), <b>subir su foto</b> para la tienda online y cambiar sus precios. Abajo puedes descargar las <b>listas en PDF para tus clientes</b>: solo salen los perfumes que hay en stock, con su nombre y precio.</Guia>
       <Aviso {...msg} error={msg.error || inv.error || compras.error} />
+
+      <OrdenTienda stock={Object.fromEntries(inv.data.map((r) => [r.id, r.stock]))} />
 
       <Seccion titulo="Listas para tus clientes (PDF)" ayuda="No incluyen costos, ganancias ni cantidades: solo el nombre y el precio de lo que tienes disponible.">
         <div className="atajos">

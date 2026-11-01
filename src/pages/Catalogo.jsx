@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { supabase } from '../supabase.js'
 import { useQuery } from '../hooks.js'
+import { crearCatalogoPdf } from '../catalogoPdf.js'
 import { Seccion, Campo, Aviso, Guia, Insignia } from '../ui.jsx'
 import { usd, num, pct } from '../lib.js'
 import { reducirImagen } from '../imagen.js'
@@ -27,6 +28,8 @@ export default function Catalogo() {
   const [abierto, setAbierto] = useState(null)
   const [form, setForm] = useState(null)
   const [nuevo, setNuevo] = useState(null)
+  const tiendaCfg = useQuery(() => supabase.from('tienda_config').select('nombre,whatsapp').eq('id', 1), [])
+  const [pdf, setPdf] = useState({ soloDisp: false, notas: true, trabajando: '', error: '' })
   const [msg, setMsg] = useState({ error: '', ok: '' })
   const [subiendo, setSubiendo] = useState(null)
 
@@ -121,6 +124,30 @@ export default function Catalogo() {
         Cada perfume tiene <b>3 precios separados</b>: <b>Tienda</b> (público), <b>Mayor</b> (público, desde 12 perfumes) y <b>Consignación</b> (lo que te debe una vendedora). La tienda nunca ve la consignación y las vendedoras nunca ven el mayor ni tu costo.
       </Guia>
       <Aviso {...msg} />
+
+      <Seccion titulo="📄 Catálogo en PDF" ayuda="Un PDF con foto, marca y nombre de cada perfume de la tienda, sin precios. Ideal para mandar por WhatsApp.">
+        <div className="form">
+          <label className="check"><input type="checkbox" checked={pdf.soloDisp} onChange={(e) => setPdf({ ...pdf, soloDisp: e.target.checked })} /> Solo los que tengo en existencia</label>
+          <label className="check"><input type="checkbox" checked={pdf.notas} onChange={(e) => setPdf({ ...pdf, notas: e.target.checked })} /> Incluir las notas y tonos</label>
+        </div>
+        <div className="acciones-fila">
+          <button className="primario" disabled={!!pdf.trabajando} onClick={async () => {
+            const elegidos = lista.data.filter((p) => p.visible_tienda && (!pdf.soloDisp || existencia(p) > 0))
+            if (!elegidos.length) return setPdf({ ...pdf, error: 'No hay perfumes para el catálogo con esas opciones.' })
+            setPdf({ ...pdf, error: '', trabajando: 'Preparando…' })
+            try {
+              await crearCatalogoPdf({
+                perfumes: elegidos, tienda: tiendaCfg.data[0] || {}, incluirNotas: pdf.notas,
+                fecha: new Date().toLocaleDateString('es-VE', { month: 'long', year: 'numeric', timeZone: 'America/Caracas' }),
+                archivo: `catalogo-perfumes-${new Date().toLocaleDateString('en-CA', { timeZone: 'America/Caracas' })}.pdf`,
+                alProgreso: (i, n) => setPdf((x) => ({ ...x, trabajando: `Preparando ${i} de ${n}…` })),
+              })
+              setPdf((x) => ({ ...x, trabajando: '' }))
+            } catch (e) { setPdf((x) => ({ ...x, trabajando: '', error: e.message })) }
+          }}>{pdf.trabajando || 'Descargar catálogo PDF'}</button>
+        </div>
+        <Aviso error={pdf.error} />
+      </Seccion>
 
       <Seccion titulo="Perfumes del catálogo" ayuda={`${lista.data.length} perfumes · ${lista.data.filter((p) => p.visible_tienda).length} en la tienda`}
         acciones={<button className="primario" onClick={() => setNuevo(nuevo ? null : { ...vacioNuevo })}>{nuevo ? 'Cerrar' : '➕ Nuevo perfume'}</button>}>

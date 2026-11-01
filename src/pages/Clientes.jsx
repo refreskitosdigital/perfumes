@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabase.js'
 import { useQuery } from '../hooks.js'
 import { Seccion, Campo, Tarjeta, Aviso, Guia, Insignia } from '../ui.jsx'
@@ -9,7 +9,7 @@ const MEDALLA = ['🥇', '🥈', '🥉']
 export default function Clientes() {
   const cli = useQuery(() => supabase.from('clientes').select('*').order('nombre'), [])
   const ven = useQuery(() => supabase.from('ventas_v')
-    .select('id,fecha,cliente,nombre,unidades,valor_usd,cobrado_usd,pendiente_usd,vence,vendedor').order('fecha', { ascending: false }).limit(5000), [])
+    .select('id,fecha,cliente,nombre,unidades,precio_unit,base,valor_usd,cobrado_usd,pendiente_usd,vence,vendedor').order('fecha', { ascending: false }).limit(5000), [])
   const [anio, setAnio] = useState('todos')
   const [buscar, setBuscar] = useState('')
   const [sel, setSel] = useState(null)
@@ -109,7 +109,7 @@ export default function Clientes() {
         </div>
       </Seccion>
 
-      {actual && <Detalle key={actual.key} c={actual} cerrar={() => setSel(null)} recargar={cli.recargar} />}
+      {actual && <Detalle key={actual.key} c={actual} cerrar={() => setSel(null)} recargar={cli.recargar} recargarVentas={ven.recargar} />}
 
       <Seccion titulo="Agregar un cliente" ayuda="Los clientes también se crean solos cuando registras una venta. Aquí puedes agregar uno con su teléfono antes de venderle.">
         <form className="form" onSubmit={crear}>
@@ -122,7 +122,8 @@ export default function Clientes() {
   )
 }
 
-function Detalle({ c, cerrar, recargar }) {
+function Detalle({ c, cerrar, recargar, recargarVentas }) {
+  const [editando, setEditando] = useState(null)
   const [tel, setTel] = useState(c.telefono)
   const [notas, setNotas] = useState(c.notas)
   const [msg, setMsg] = useState({ error: '', ok: '' })
@@ -158,20 +159,95 @@ function Detalle({ c, cerrar, recargar }) {
       <h3>Todo lo que ha comprado</h3>
       <div className="tabla-wrap">
         <table>
-          <thead><tr><th>Fecha</th><th>Perfume</th><th className="num">Unid.</th><th className="num">Valor</th><th className="num">Pagado</th><th className="num">Debe</th><th>Vendió</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Perfume</th><th className="num">Unid.</th><th className="num">Valor</th><th className="num">Pagado</th><th className="num">Debe</th><th>Vendió</th><th /></tr></thead>
           <tbody>
-            {c.lineas.map((l) => (
+            {c.lineas.flatMap((l) => [
               <tr key={l.id}>
                 <td>{l.fecha}</td><td>{l.nombre}</td><td className="num">{l.unidades}</td>
                 <td className="num">{usd(l.valor_usd)}</td><td className="num">{usd(l.cobrado_usd)}</td>
                 <td className="num">{num(l.pendiente_usd) > 0.01 ? <b className="alerta">{usd(l.pendiente_usd)}</b> : '—'}</td>
                 <td>{l.vendedor}</td>
-              </tr>
-            ))}
-            {!c.lineas.length && <tr><td colSpan={7} className="vacio">Este cliente todavía no tiene compras.</td></tr>}
+                <td><button onClick={() => setEditando(editando === l.id ? null : l.id)} aria-label="Editar venta y cobros">✏️</button></td>
+              </tr>,
+              editando === l.id && <tr key={'e' + l.id}><td colSpan={8}><EditarVenta l={l} listo={() => { recargarVentas() }} cerrar={() => setEditando(null)} /></td></tr>,
+            ])}
+            {!c.lineas.length && <tr><td colSpan={8} className="vacio">Este cliente todavía no tiene compras.</td></tr>}
           </tbody>
         </table>
       </div>
     </Seccion>
+  )
+}
+
+// Corrige una venta (fecha, unidades, precio) y los cobros que ya se registraron (monto, fecha, cuenta, tasa)
+function EditarVenta({ l, listo, cerrar }) {
+  const cobros = useQuery(() => supabase.from('cobros').select('*').eq('venta_id', l.id).order('fecha').order('id'), [l.id])
+  const [v, setV] = useState({ fecha: String(l.fecha).slice(0, 10), unidades: l.unidades, precio_unit: l.precio_unit })
+  const [nuevo, setNuevo] = useState({ fecha: String(l.fecha).slice(0, 10), cuenta: 'efectivo', monto: '', tasa_binance: '' })
+  const [msg, setMsg] = useState({ error: '', ok: '' })
+  const [filas, setFilas] = useState([])
+  useEffect(() => { setFilas(cobros.data.map((c) => ({ ...c, fecha: String(c.fecha).slice(0, 10), tasa_binance: c.tasa_binance ?? '' }))) }, [cobros.data])
+  const moneda = (c) => (c === 'bs' ? 'Bs' : '$')
+  const fin = (r) => { if (r.error) setMsg({ error: r.error.message, ok: '' }); else { setMsg({ error: '', ok: 'Guardado.' }); cobros.recargar(); listo() } }
+
+  const guardarVenta = async () => {
+    if (!(num(v.unidades) >= 1) || num(v.precio_unit) < 0) return setMsg({ error: 'Revisa las unidades y el precio.', ok: '' })
+    fin(await supabase.from('ventas').update({ fecha: v.fecha, unidades: Math.round(num(v.unidades)), precio_unit: num(v.precio_unit) }).eq('id', l.id))
+  }
+  const cambiar = (id, k, val) => setFilas((fs) => fs.map((f) => (f.id === id ? { ...f, [k]: val } : f)))
+  const guardarCobro = async (f) => {
+    if (!(num(f.monto) > 0)) return setMsg({ error: 'El monto del cobro debe ser mayor a 0.', ok: '' })
+    fin(await supabase.from('cobros').update({ fecha: f.fecha, cuenta: f.cuenta, monto: num(f.monto), tasa_binance: f.cuenta === 'bs' && num(f.tasa_binance) > 0 ? num(f.tasa_binance) : null }).eq('id', f.id))
+  }
+  const borrarCobro = async (f) => {
+    if (!window.confirm(`¿Eliminar el cobro de ${moneda(f.cuenta)} ${num(f.monto).toLocaleString('es-VE')} del ${f.fecha}?`)) return
+    fin(await supabase.from('cobros').delete().eq('id', f.id))
+  }
+  const agregarCobro = async () => {
+    if (!(num(nuevo.monto) > 0)) return setMsg({ error: 'Escribe el monto del cobro.', ok: '' })
+    const r = await supabase.from('cobros').insert({ venta_id: l.id, fecha: nuevo.fecha, cuenta: nuevo.cuenta, monto: num(nuevo.monto), tasa_binance: nuevo.cuenta === 'bs' && num(nuevo.tasa_binance) > 0 ? num(nuevo.tasa_binance) : null })
+    fin(r); if (!r.error) setNuevo({ ...nuevo, monto: '', tasa_binance: '' })
+  }
+
+  return (
+    <div className="editar-venta">
+      <h4>Corregir venta: {l.nombre}</h4>
+      <div className="form">
+        <Campo label="Fecha"><input type="date" value={v.fecha} onChange={(e) => setV({ ...v, fecha: e.target.value })} /></Campo>
+        <Campo label="Unidades"><input type="number" min="1" step="1" value={v.unidades} onChange={(e) => setV({ ...v, unidades: e.target.value })} /></Campo>
+        <Campo label={`Precio por unidad (${l.base === 'bcv' ? 'BCV$' : '$'})`}><input type="number" min="0" step="0.01" value={v.precio_unit} onChange={(e) => setV({ ...v, precio_unit: e.target.value })} /></Campo>
+        <button className="primario" onClick={guardarVenta}>Guardar venta</button>
+      </div>
+      <p className="ayuda">Total de la venta: <b>{usd(num(v.unidades) * num(v.precio_unit))}{l.base === 'bcv' ? ' BCV$' : ''}</b>. Si cambias las unidades, el inventario se ajusta solo.</p>
+      <h4>Cobros de esta venta</h4>
+      {!filas.length && <p className="vacio">Esta venta no tiene cobros registrados.</p>}
+      {filas.map((f) => (
+        <div className="form" key={f.id}>
+          <Campo label="Fecha"><input type="date" value={f.fecha} onChange={(e) => cambiar(f.id, 'fecha', e.target.value)} /></Campo>
+          <Campo label="Cuenta">
+            <select value={f.cuenta} onChange={(e) => cambiar(f.id, 'cuenta', e.target.value)}>
+              <option value="efectivo">$ efectivo</option><option value="binance">$ Binance</option><option value="bs">Bs</option>
+            </select>
+          </Campo>
+          <Campo label={`Monto (${moneda(f.cuenta)})`}><input type="number" min="0" step="0.01" value={f.monto} onChange={(e) => cambiar(f.id, 'monto', e.target.value)} /></Campo>
+          {f.cuenta === 'bs' && <Campo label="Tasa Binance" ayuda="Vacío = la de la venta"><input type="number" min="0" step="0.01" value={f.tasa_binance} onChange={(e) => cambiar(f.id, 'tasa_binance', e.target.value)} /></Campo>}
+          <button className="primario" onClick={() => guardarCobro(f)}>Guardar</button>
+          <button onClick={() => borrarCobro(f)} aria-label="Eliminar cobro">🗑️</button>
+        </div>
+      ))}
+      <div className="form">
+        <Campo label="Nuevo cobro · fecha"><input type="date" value={nuevo.fecha} onChange={(e) => setNuevo({ ...nuevo, fecha: e.target.value })} /></Campo>
+        <Campo label="Cuenta">
+          <select value={nuevo.cuenta} onChange={(e) => setNuevo({ ...nuevo, cuenta: e.target.value })}>
+            <option value="efectivo">$ efectivo</option><option value="binance">$ Binance</option><option value="bs">Bs</option>
+          </select>
+        </Campo>
+        <Campo label={`Monto (${moneda(nuevo.cuenta)})`}><input type="number" min="0" step="0.01" value={nuevo.monto} onChange={(e) => setNuevo({ ...nuevo, monto: e.target.value })} /></Campo>
+        {nuevo.cuenta === 'bs' && <Campo label="Tasa Binance"><input type="number" min="0" step="0.01" value={nuevo.tasa_binance} onChange={(e) => setNuevo({ ...nuevo, tasa_binance: e.target.value })} /></Campo>}
+        <button onClick={agregarCobro}>Agregar cobro</button>
+      </div>
+      <Aviso {...msg} />
+      <button onClick={cerrar}>Cerrar edición</button>
+    </div>
   )
 }

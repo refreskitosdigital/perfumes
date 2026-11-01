@@ -120,6 +120,8 @@ html { scroll-behavior: smooth; }
 @media (hover: hover) { .tienda .t-card:hover .f2 { opacity: 1; } }
 .tienda .t-sello { position: absolute; top: 14px; left: 14px; font-size: 12px; letter-spacing: .06em; padding: 6px 12px; background: #fff; color: var(--tinta); z-index: 2; }
 .tienda .t-sello.poco { background: var(--mg); color: var(--tinta); }
+.tienda .t-sello.disp { background: #fff; color: #1f6b3a; }
+.tienda .t-sello.pronto { background: var(--tinta); color: #fff; }
 .tienda .t-dos { position: absolute; bottom: 12px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; z-index: 2; }
 .tienda .t-dos i { width: 6px; height: 6px; border-radius: 3px; background: var(--tinta); opacity: .75; } .tienda .t-dos i + i { background: #8d9079; }
 .tienda .t-info { display: flex; flex-direction: column; gap: 6px; flex: 1; }

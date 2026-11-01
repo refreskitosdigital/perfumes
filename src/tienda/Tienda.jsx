@@ -87,7 +87,7 @@ export default function Tienda() {
 
   const visibles = useMemo(() => (cat || [])
     .filter((p) => (!q || normNombre(p.nombre + ' ' + (p.marca || '')).includes(normNombre(q))) && (genero === 'todos' || p.genero === genero) && (!marca || p.marca === marca) && (solo === 'todos' || (solo === 'disp' ? p.stock > 0 && p.precio_detal != null : p.stock === 0 || p.precio_detal == null)))
-    .sort((a, b) => ((b.stock > 0 && b.precio_detal != null) - (a.stock > 0 && a.precio_detal != null)) || a.nombre.localeCompare(b.nombre, 'es')), [cat, q, solo, genero, marca])
+    , [cat, q, solo, genero, marca])
   const marcas = useMemo(() => [...new Set((cat || []).map((p) => p.marca).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')), [cat])
   const hayGenero = (cat || []).some((p) => p.genero)
   const nDisp = (cat || []).filter((p) => p.stock > 0 && p.precio_detal != null).length
@@ -370,7 +370,11 @@ function Ficha({ p, tab, umbral, tasa, carro, cambiar, setAgendar, abrirFicha })
       <div className="t-foto" style={{ background: tono.fondo }} onClick={() => abrirFicha(p)}>
         {p.foto_url ? <img className="f1" src={p.foto_url} alt={p.nombre} loading="lazy" /> : <Botella nombre={p.nombre} tono={tono} />}
         {p.foto2_url && <img className="f2" src={p.foto2_url} alt={`${p.nombre}, segunda foto`} loading="lazy" />}
-        {!agendable && p.stock <= 2 && <span className="t-sello poco">{p.stock === 1 ? 'Última unidad' : `Quedan ${p.stock}`}</span>}
+        {sinStock
+          ? <span className="t-sello pronto">Por llegar pronto</span>
+          : !agendable && (p.stock <= 2
+            ? <span className="t-sello poco">{p.stock === 1 ? 'Última unidad' : `Quedan ${p.stock}`}</span>
+            : <span className="t-sello disp">Disponible</span>)}
         {p.foto2_url && <span className="t-dos" aria-hidden="true"><i /><i /></span>}
       </div>
       <div className="t-info">
@@ -443,7 +447,7 @@ function Detalle({ p, tasa, umbral, carro, cambiar, setAgendar, info, setAviso, 
           )}
           {p.descripcion && <p>{p.descripcion}</p>}
           {p.notas && <p className="t-notas"><b>Notas:</b> {p.notas}</p>}
-          <p className="t-disp">{agendable ? (sinPrecio ? 'Agéndalo y te escribimos con el precio.' : 'Ahora no está disponible: agéndalo y te avisamos.') : p.stock <= 2 ? (p.stock === 1 ? 'Última unidad' : `Quedan ${p.stock}`) : 'Disponible'}</p>
+          <p className="t-disp">{agendable ? (sinPrecio ? 'Agéndalo y te escribimos con el precio.' : 'Por llegar pronto: agéndalo y te avisamos apenas llegue.') : p.stock <= 2 ? (p.stock === 1 ? 'Última unidad' : `Quedan ${p.stock}`) : 'Disponible'}</p>
         </div>
         <div className="t-acciones col">
           {agendable

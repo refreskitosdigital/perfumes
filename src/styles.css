@@ -193,3 +193,18 @@ input.mini { width: 84px; text-align: right; padding: 5px 6px; min-height: 0; }
 .lista-descargas button { min-height: 44px; text-align: left; padding: 8px 12px; }
 tr.tenue td { color: #888; }
 @media (max-width: 640px) { .cobro-fila { grid-template-columns: 1fr auto; } .cobro-fila a.boton { grid-column: 1 / -1; justify-content: center; } }
+
+/* Orden manual de la tienda */
+.orden-lista { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; max-height: 70vh; overflow-y: auto; }
+.orden-lista li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--card, #fff); }
+.orden-lista li[draggable="true"] { cursor: grab; }
+.orden-lista li.arrastrando { opacity: .4; }
+.orden-lista li.sobre { border-color: var(--accent, #7a3e9d); box-shadow: 0 -3px 0 var(--accent, #7a3e9d); }
+.orden-asa { width: 18px; color: #888; user-select: none; }
+.orden-n { min-width: 28px; text-align: right; color: #888; font-variant-numeric: tabular-nums; }
+.orden-nombre { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.orden-nombre small { color: #777; }
+.orden-botones { display: flex; gap: 4px; }
+.orden-botones button { min-width: 34px; min-height: 34px; padding: 0 6px; }
+.editar-venta { padding: 8px 4px; display: grid; gap: 8px; }
+.editar-venta h4 { margin: 6px 0 0; }

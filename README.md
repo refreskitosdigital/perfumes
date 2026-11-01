@@ -6,23 +6,16 @@ Reparto de ganancias 50/50. Datos en Supabase, código en GitHub, publicada en N
 ## Instalación (una sola vez, ~20 minutos)
 
 ### 1. Supabase (la base de datos)
+**Camino rápido (proyecto de Supabase nuevo y vacío)**
 1. Entra a https://supabase.com, crea una cuenta y un **New project** (nombre: `perfumes`; guarda la clave de base de datos).
-2. Menú **SQL Editor > New query**. Pega TODO el contenido de `supabase/schema.sql` y pulsa **Run**.
-3. En **Authentication > Users > Add user > Create new user**, crea dos usuarios (correo y clave) para Juan y George. Marca *Auto Confirm User*.
-4. En **Authentication > Sign In / Providers**, desactiva *Allow new users to sign up* (así nadie más puede registrarse).
-5. En el **SQL Editor**, nueva consulta: pega y ejecuta `supabase/seed_pedidos_1_2.sql` (carga los pedidos 1 y 2 con sus ventas, cobros pendientes y el préstamo).
-6. Luego ejecuta `supabase/seed_pedido_3.sql`: carga el pedido 3 (3 socios en partes iguales), los préstamos de REFRESKITO Digital y los correos de acceso de Juan, George y Rosanny.
-7. Por último ejecuta `supabase/migracion_v3.sql` (clientes, pagos y el botón Realizar pedido). Es seguro repetirla.
-8. Después ejecuta `supabase/migracion_v4.sql` (tienda online, fotos, pedidos web y demanda). Es seguro repetirla. Crea el bucket de fotos `perfumes`.
-9. Después ejecuta `supabase/migracion_v5.sql` (banners, segunda foto, datos de entrega, tu WhatsApp). Es seguro repetirla.
-10. Por último ejecuta `supabase/migracion_v6.sql` (una sola tasa de venta: BCV Euro; la Binance queda solo interna). Es seguro repetirla.
-11. Ejecuta `supabase/migracion_v7.sql` (la tienda muestra TODOS los perfumes visibles, incluso los que aún no tienen precio: salen como "Precio por confirmar" y se pueden agendar). No modifica ni borra datos. Es seguro repetirla.
-12. Ejecuta `supabase/migracion_v8.sql` (gastos, tablero de Rentabilidad y carga del lote 3: ventas, cobros, agenda y cambio Moschino → Bharara Viking). La carga se aplica una sola vez aunque la repitas. Antes de correrla, la tasa del día debe estar registrada en la pestaña Tasas.
-13. Ejecuta `supabase/migracion_v9.sql` (Catálogo con 3 precios, descripciones, vendedoras con PIN, pedidos de vendedoras y sus cobros). Hay que haber corrido antes v4 → v8, en orden. Es seguro repetirla.
-14. Ejecuta `supabase/migracion_v10.sql` (marca, género, notas olfativas y tips de venta en el Catálogo; llena la marca y el género leyendo el nombre, sin pisar lo que ya hayas escrito). Es seguro repetirla.
-11. Tienda pública: `https://TU-SITIO.netlify.app/tienda`. Entra a **Tienda online → Ajustes** y coloca el WhatsApp (ej. 584141234567), el mínimo al mayor (12) y tus métodos de pago.
-12. Banners: **Tienda online → Banners** (hasta 4, 1920 × 640 px). Fotos y precios: **Inventario → ✏️ Editar** (subir foto, cambiar precio y mostrar/ocultar en la tienda).
-8. En **Project Settings > API** copia dos datos: **Project URL** y la clave **anon public**.
+2. **SQL Editor > New query**: abre `supabase/00_instalacion_completa.sql`, busca el bloque **EDITA ESTAS 3 CIFRAS** y escribe las tasas de hoy (BCV Euro, Binance y BCV $). Pega TODO el archivo y pulsa **Run**. Carga el esquema, los pedidos 1 a 4, las ventas, los cobros y todas las migraciones (v3 a v13) en el orden correcto.
+3. **Authentication > Users > Add user > Create new user**: crea los usuarios de Juan, George y Rosanny con los mismos correos de la tabla `socios` (marca *Auto Confirm User*).
+4. **Authentication > Sign In / Providers**: desactiva *Allow new users to sign up*.
+5. **Project Settings > API**: copia el **Project URL** y la clave **anon public** (se usan al publicar).
+
+**Camino por pasos (si ya tienes la base y solo te falta una parte)** ejecuta, en este orden y solo lo que no hayas corrido: `schema.sql`, `seed_pedidos_1_2.sql`, `seed_pedido_3.sql`, `migracion_v3.sql` … `migracion_v7.sql`, guardar las 3 tasas de hoy en la app (*Tasa del día*), `migracion_v8.sql`, `v9`, `v10`, `v11`, `v12`, `cobros_30oct.sql` y `migracion_v13.sql`. Las v11 a v13 también vienen juntas en `entrega_v11_a_v13.sql`. Todas se pueden repetir sin duplicar datos (las cargas se anotan en `cargas_hechas`).
+
+**Después de publicar:** la tienda pública está en `/tienda`. Entra a **Tienda online → Ajustes** y coloca el WhatsApp (ej. 584141234567), el mínimo al mayor (12) y tus métodos de pago. Banners en **Tienda online → Banners** (hasta 4, 1920 × 640 px). Fotos y precios en **Inventario → ✏️ Editar**.
 
 ### 2. GitHub (el código)
 1. Crea un repositorio nuevo **privado** en https://github.com (ej. `control-perfumes`).
@@ -101,3 +94,21 @@ Los parámetros (30 %, 6 unidades, redondeo) están en la tabla `config` de Supa
 - **Respaldo y Excel** (Sistema): descarga todo en Excel (una hoja por tabla) o en JSON, o una tabla suelta. El menú muestra un «!» si pasaron 7 días sin respaldo. Nunca se descargan los PIN de las vendedoras.
 - **Tienda**: filtros por género (mujer, hombre, unisex) y por marca. En el Catálogo, el filtro «Sin marca o sin género» ayuda a completar los que faltan.
 - **Vendedoras**: ficha completa con descripción, notas y «Cómo venderlo» (solo para ellas); botón «Avisar por WhatsApp» al enviar un pedido; y «Te toca cobrar» con recordatorio al cliente.
+
+## Catálogo en PDF (sin precios)
+En **Catálogo** hay una sección «Catálogo en PDF»: genera un PDF con portada y 9 perfumes por página (foto, marca, género, nombre y, si quieres, notas) de todos los perfumes que están en la tienda. No incluye precios ni existencias. Puedes limitarlo a los que tienes en existencia. Se genera en tu navegador con los datos y fotos actuales, así que vuelve a generarlo cuando cambien. Para que salga la marca y las notas debe estar corrida la migración v10.
+
+16. Ejecuta `supabase/migracion_v12.sql` (cierre del lote 3 con lo que quedó en existencia). Antes guarda en *Tasa del día* las 3 tasas de hoy (BCV Euro, Binance y BCV $). Se aplica una sola vez.
+
+## Novedades v11
+- **Tasa del día**: campo opcional *BCV $* (interna, nunca sale en la tienda) para calcular la merma.
+- **Caja**: Efectivo $, Binance $, Bolívares y *Wallet total*. Mientras haya Bs sin convertir, el total dice "estimado" (Bs a tasa Binance). En *Convertir bolívares en divisa* anotas los Bs entregados y la divisa recibida: los Bs salen, la divisa entra y se calcula la merma (Bs ÷ BCV $ − divisa recibida). La merma se resta de la ganancia neta en Rentabilidad.
+- **Inventario**: *Orden en la tienda* (arrastra con ☰ o usa ▲ ▼) y nombre editable en ✏️ Editar. La tienda y las vendedoras siguen ese orden, haya o no stock.
+- **Clientes**: ✏️ en cada compra para corregir fecha, unidades y precio, y editar, agregar o borrar sus cobros.
+- **Tienda**: etiquetas *Disponible* y *Por llegar pronto* (agotado).
+- **Caja → Conteo real**: escribes lo que de verdad hay (banco Bs, efectivo, Binance), ves la diferencia contra el sistema y la ajustas con un botón.
+
+## Publicar sin Netlify
+- **Vercel** (gratis): importa el repositorio y agrega las mismas variables (`VITE_MODO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_URL_TIENDA`, `VITE_URL_VENDEDORAS`). `vercel.json` ya trae las rutas y `api/ficha.js` la vista previa del link `/p/ID`. Un proyecto por sitio (control, tienda, vendedoras), todos del mismo repositorio.
+- **Cloudflare Pages** (gratis): build `npm run build`, carpeta `dist`, mismas variables. Funciona la tienda y los links `?p=ID`; la vista previa bonita de `/p/ID` en WhatsApp solo existe en Netlify y Vercel.
+- Las migraciones v11 a v13 también vienen juntas en `supabase/entrega_v11_a_v13.sql`.

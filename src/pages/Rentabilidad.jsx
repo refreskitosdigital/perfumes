@@ -32,6 +32,7 @@ export default function Rentabilidad() {
   const inv = useQuery(() => supabase.from('inventario_v').select('stock,costo'), [])
   const caja = useQuery(() => supabase.from('caja_v').select('*'), [])
   const pre = useQuery(() => supabase.from('prestamos').select('monto,devuelto'), [])
+  const mer = useQuery(() => supabase.from('conversiones_v').select('merma_usd'), [])
   const [modo, setModo] = useState('semana')
 
   const suma = (arr, k) => arr.reduce((a, r) => a + num(r[k]), 0)
@@ -41,7 +42,8 @@ export default function Rentabilidad() {
   const porCobrar = suma(ven.data, 'pendiente_usd')
   const bruta = suma(ped.data, 'ganancia_bruta')
   const gastosTot = suma(gas.data, 'monto')
-  const neta = bruta - gastosTot
+  const merma = suma(mer.data, 'merma_usd')
+  const neta = bruta - gastosTot - merma
   const stockCosto = inv.data.reduce((a, r) => a + Math.max(num(r.stock), 0) * num(r.costo), 0)
   const enCaja = cajaUsd(caja.data, tasa?.binance)
   const deuda = pre.data.reduce((a, r) => a + num(r.monto) - num(r.devuelto), 0)
@@ -76,7 +78,7 @@ export default function Rentabilidad() {
       <Aviso error={error} />
       <Seccion titulo="¿Cómo va el negocio?" ayuda="Todo sale de lo que registras en Ventas, Compras y Gastos. La ganancia es lo vendido menos lo que costó la mercancía (con su envío), y la neta además resta los gastos.">
         <div className="tarjetas grandes">
-          <Tarjeta titulo="💰 Ganancia neta" valor={usd(neta)} tono={neta >= 0 ? 'bueno' : 'malo'} nota={inversion ? `${pct(neta / inversion)} sobre la inversión` : ''} />
+          <Tarjeta titulo="💰 Ganancia neta" valor={usd(neta)} tono={neta >= 0 ? 'bueno' : 'malo'} nota={(inversion ? `${pct(neta / inversion)} sobre la inversión` : '') + (merma ? ` · incluye merma de ${usd(merma)}` : '')} />
           <Tarjeta titulo="📈 Ganancia bruta" valor={usd(bruta)} tono={bruta >= 0 ? 'bueno' : 'malo'} nota={inversion ? `${pct(bruta / inversion)} sobre la inversión${margen != null ? ' · margen ' + pct(margen) : ''}` : ''} />
           <Tarjeta titulo="📥 Nos deben" valor={usd(porCobrar)} tono={porCobrar > 0 ? 'malo' : ''} nota="Ventas por cobrar" />
           <Tarjeta titulo="💵 Dinero en caja" valor={usd(enCaja)} tono="bueno" nota="Binance + efectivo + Bs" />
@@ -90,6 +92,7 @@ export default function Rentabilidad() {
           <Tarjeta titulo="Cobrado" valor={usd(cobrado)} nota={vendido ? `${pct(cobrado / vendido)} de lo vendido` : ''} />
           <Tarjeta titulo="Por cobrar" valor={usd(porCobrar)} tono={porCobrar > 0 ? 'malo' : ''} />
           <Tarjeta titulo="Gastos" valor={usd(gastosTot)} tono={gastosTot > 0 ? 'malo' : ''} nota="Delivery, traslados, etc." />
+          <Tarjeta titulo="Merma por cambio" valor={usd(merma)} tono={merma > 0 ? 'malo' : ''} nota="Lo que se pierde al convertir Bs en divisa (se resta de la neta)" />
           <Tarjeta titulo="Mercancía en stock (a costo)" valor={usd(stockCosto)} />
           <Tarjeta titulo="Préstamos por devolver" valor={usd(deuda)} tono={deuda > 0 ? 'malo' : ''} />
         </div>
