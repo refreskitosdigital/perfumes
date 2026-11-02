@@ -60,7 +60,8 @@ export default function Caja() {
     if (!error) { setF({ ...f, monto: '', nota: '' }); caja.recargar(); mov.recargar() }
   }
 
-  
+  const sobrante = mov.data.filter((m) => m.concilia)
+  const sumaConcilia = (c) => sobrante.filter((m) => m.cuenta === c).reduce((a, m) => a + num(m.monto), 0)
 
   return (
     <>
@@ -72,6 +73,13 @@ export default function Caja() {
           <Tarjeta titulo={bsSaldo > 0.005 ? 'Wallet total (estimado)' : 'Wallet total'} valor={usd(totalWallet)} tono="bueno"
             nota={bsSaldo > 0.005 ? 'Incluye Bs sin convertir a tasa Binance. Será exacto al convertirlos.' : 'Todo en divisa: monto exacto'} />
         </div>
+        {sobrante.length > 0 && (
+          <div className="aviso-inciso">
+            <b>Inciso · Sobrante por conciliar:</b>{' '}
+            {sobrante.map((m) => `${m.cuenta === 'bs' ? bs(m.monto) : usd(m.monto)} en ${m.cuenta === 'bs' ? 'banco' : m.cuenta}`).join(' · ')}.
+            {' '}Es dinero que hay en la caja pero que no sale de las ventas registradas. Está incluido en los saldos de arriba y se muestra aparte para buscar de dónde viene.
+          </div>
+        )}
       </Seccion>
       <Seccion titulo="Conteo real de la caja" ayuda="Escribe lo que de verdad tienes hoy (banco en Bs, efectivo y Binance). Ves la diferencia contra el sistema y, si quieres, la ajustas con un solo botón. Deja vacía la cuenta que no quieras contar.">
         <div className="form">

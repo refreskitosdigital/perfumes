@@ -208,3 +208,5 @@ tr.tenue td { color: #888; }
 .orden-botones button { min-width: 34px; min-height: 34px; padding: 0 6px; }
 .editar-venta { padding: 8px 4px; display: grid; gap: 8px; }
 .editar-venta h4 { margin: 6px 0 0; }
+tr.sub td { font-size: .85em; color: var(--muted, #6b6b6b); background: rgba(0,0,0,.025); }
+.aviso-inciso { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--warn); color: var(--warntx); font-size: 14px; line-height: 1.5; }
