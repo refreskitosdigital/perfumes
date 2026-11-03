@@ -5,7 +5,7 @@
 --
 -- QUÉ HACE
 --  1. Borra TODAS las ventas y cobros actuales, las compras de divisa y los ajustes de caja de la v15.
---  2. Carga las 70 ventas de los lotes 1 a 4 con sus cobros (fecha, cuenta, monto y tasa de cada pago).
+--  2. Carga las 69 ventas de los lotes 1 a 4 con sus cobros (fecha, cuenta, monto y tasa de cada pago).
 --  3. NO toca pedidos, compras, aportes de los socios, préstamos ni gastos (taxi $11 y arroz chino $20 se mantienen).
 --  4. Registra la pérdida del Yara Candy defectuoso: 1 unidad menos en el P-003 y gasto operativo de $12 (sin tocar la caja).
 --  5. Cuadra la caja con lo que hay a la mano: efectivo $67, Binance $76 y banco 2.600 Bs.
@@ -82,7 +82,6 @@ begin
    (40,'P-003','Andreina (esposa de Ismael)','Wuilesmar','Lattafa Yara Clásico',1,25,'bcv',null),
    (41,'P-003','Jessica Green Hair','George','Lattafa Yara Candy Fem',1,30,'bcv','2026-11-17'),
    (42,'P-003','Jhoany Guitian','Rosanny','Lattafa Yara Candy Fem',1,35,'bcv',null),
-   (43,'P-003','Jesus Teran','Juan','Paco Rabanne Invictus Intense',1,20,'divisa',null),
    (44,'P-003','Jema de La Hoz','George','Paco Rabanne One Million Lucky',1,30,'divisa','2026-11-15'),
    (45,'P-003','Doris Teran','Juan','Fantasy',1,25,'divisa','2026-11-15'),
    (46,'P-003','Juan Perez','Juan','Armaf Odyssey Mandarin Sky Elixir',1,35,'divisa',null),

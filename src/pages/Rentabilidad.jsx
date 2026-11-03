@@ -28,7 +28,8 @@ export default function Rentabilidad() {
   const ped = useQuery(() => supabase.from('rentabilidad_pedido_v').select('*').order('codigo'), [])
   const soc = useQuery(() => supabase.from('rentabilidad_socios_v').select('*').order('socio'), [])
   const ven = useQuery(() => supabase.from('ventas_v').select('fecha,valor_usd,cobrado_usd,pendiente_usd,costo_total,ganancia'), [])
-  const gas = useQuery(() => supabase.from('gastos').select('fecha,categoria,monto,pedido_codigo'), [])
+  const gas = useQuery(() => supabase.from('gastos').select('fecha,categoria,monto,pedido_codigo,socios'), [])
+  const ret = useQuery(() => supabase.from('retiros_socios').select('socio,monto_usd'), [])
   const inv = useQuery(() => supabase.from('inventario_v').select('stock,costo'), [])
   const caja = useQuery(() => supabase.from('caja_v').select('*'), [])
   const pre = useQuery(() => supabase.from('prestamos').select('monto,devuelto'), [])
@@ -49,11 +50,19 @@ export default function Rentabilidad() {
   const enCaja = cajaUsd(caja.data, tasa?.binance)
   const deuda = pre.data.reduce((a, r) => a + num(r.monto) - num(r.devuelto), 0)
   const margen = vendido > 0 ? bruta / vendido : null
-  const error = ped.error || soc.error || ven.error || gas.error || inv.error || caja.error || pre.error
+  const error = ret.error || ped.error || soc.error || ven.error || gas.error || inv.error || caja.error || pre.error
 
   // Gastos generales (sin pedido): se reparten a partes iguales entre los socios
-  const generales = gas.data.filter((g) => !g.pedido_codigo).reduce((a, g) => a + num(g.monto), 0)
+  const generalesLista = gas.data.filter((g) => !g.pedido_codigo)
+  const generales = generalesLista.reduce((a, g) => a + num(g.monto), 0)
   const nSocios = Math.max(soc.data.length, 1)
+  // Lo que le toca a cada socio de los gastos generales: si el gasto indica socios, solo ellos; si no, todos por igual
+  const cargo = (nombre) => generalesLista.reduce((a, g) => {
+    const lista = g.socios || []
+    if (lista.length) return a + (lista.includes(nombre) ? num(g.monto) / lista.length : 0)
+    return a + num(g.monto) / nSocios
+  }, 0)
+  const recibido = (nombre) => ret.data.filter((r) => r.socio === nombre).reduce((a, r) => a + num(r.monto_usd), 0)
 
   // Ventas, costo y ganancia por semana o mes
   const periodos = useMemo(() => {
@@ -147,14 +156,16 @@ export default function Rentabilidad() {
         ]} />
       </Seccion>
 
-      <Seccion titulo="Ganancia por socio" ayuda={generales > 0 ? `Incluye ${usd(generales)} de gastos generales repartidos a partes iguales (${usd(generales / nSocios)} cada uno).` : 'Cada pedido reparte su ganancia neta según la participación de sus socios.'}>
+      <Seccion titulo="Ganancia por socio" ayuda={generales > 0 ? `Incluye ${usd(generales)} de gastos generales: los que no indican socios se reparten a partes iguales y los que sí, solo entre los indicados. "Ya recibió" suma lo que se le ha pagado como reparto o bonificación (Finanzas → Pagos a socios).` : 'Cada pedido reparte su ganancia neta según la participación de sus socios.'}>
         <Tabla filas={soc.data} cols={[
           { k: 'socio', t: 'Socio' },
           { k: 'aportes', t: 'Aportó', num: true, f: (r) => usd(r.aportes) },
           { k: 'ganancia_bruta', t: 'Ganancia', num: true, f: (r) => usd(r.ganancia_bruta) },
-          { k: 'gastos', t: 'Gastos', num: true, f: (r) => usd(num(r.gastos) + generales / nSocios) },
-          { k: 'ganancia_neta', t: 'Neta', num: true, f: (r) => <b className="bueno">{usd(num(r.ganancia_neta) - generales / nSocios)}</b> },
-          { k: 'roi', t: '% s/ aporte', num: true, f: (r) => (num(r.aportes) > 0 ? pct((num(r.ganancia_neta) - generales / nSocios) / num(r.aportes)) : '—') },
+          { k: 'gastos', t: 'Gastos', num: true, f: (r) => usd(num(r.gastos) + cargo(r.socio)) },
+          { k: 'ganancia_neta', t: 'Neta', num: true, f: (r) => <b className="bueno">{usd(num(r.ganancia_neta) - cargo(r.socio))}</b> },
+          { k: 'recibido', t: 'Ya recibió', num: true, f: (r) => usd(recibido(r.socio)) },
+          { k: 'porrecibir', t: 'Le falta recibir', num: true, f: (r) => <b>{usd(num(r.ganancia_neta) - cargo(r.socio) - recibido(r.socio))}</b> },
+          { k: 'roi', t: '% s/ aporte', num: true, f: (r) => (num(r.aportes) > 0 ? pct((num(r.ganancia_neta) - cargo(r.socio)) / num(r.aportes)) : '—') },
         ]} />
       </Seccion>
 

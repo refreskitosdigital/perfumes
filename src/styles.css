@@ -210,3 +210,7 @@ tr.tenue td { color: #888; }
 .editar-venta h4 { margin: 6px 0 0; }
 tr.sub td { font-size: .85em; color: var(--muted, #6b6b6b); background: rgba(0,0,0,.025); }
 .aviso-inciso { margin-top: 12px; padding: 12px 14px; border-radius: 10px; background: var(--warn); color: var(--warntx); font-size: 14px; line-height: 1.5; }
+button.peligro { color: var(--bad, #b3261e); border-color: var(--bad, #b3261e); }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 0; }
+.checks label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+td.acciones { white-space: nowrap; display: flex; gap: 6px; }

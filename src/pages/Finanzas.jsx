@@ -6,9 +6,10 @@ import { Seccion, Tabla, Tarjeta, Aviso, Guia } from '../ui.jsx'
 import { usd, bs, num, pct } from '../lib.js'
 import Caja from './Caja.jsx'
 import Tasas from './Tasas.jsx'
+import PagosSocios from './PagosSocios.jsx'
 
 // Finanzas: caja y compra de divisa, tasas con su brecha y la merma por pedido, todo junto.
-const SUBS = [['caja', '🏦 Caja y compra de divisa'], ['tasas', '💱 Tasas y brecha'], ['merma', '📉 Merma por pedido']]
+const SUBS = [['caja', '🏦 Caja y compra de divisa'], ['tasas', '💱 Tasas y brecha'], ['merma', '📉 Merma por pedido'], ['socios', '🤝 Pagos a socios']]
 
 export default function Finanzas() {
   const [sub, setSub] = useState(() => { const s = window.__finSub || 'caja'; window.__finSub = null; return s })
@@ -20,6 +21,7 @@ export default function Finanzas() {
       {sub === 'caja' && <Caja />}
       {sub === 'tasas' && <><Tasas /><Brecha /></>}
       {sub === 'merma' && <Merma />}
+      {sub === 'socios' && <PagosSocios />}
     </>
   )
 }

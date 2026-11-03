@@ -8,12 +8,12 @@ Reparto de ganancias 50/50. Datos en Supabase, código en GitHub, publicada en N
 ### 1. Supabase (la base de datos)
 **Camino rápido (proyecto de Supabase nuevo y vacío)**
 1. Entra a https://supabase.com, crea una cuenta y un **New project** (nombre: `perfumes`; guarda la clave de base de datos).
-2. **SQL Editor > New query**: abre `supabase/00_instalacion_completa.sql`, busca el bloque **EDITA ESTAS 3 CIFRAS** y escribe las tasas de hoy (BCV Euro, Binance y BCV $). Pega TODO el archivo y pulsa **Run**. Carga el esquema, los pedidos 1 a 4, las ventas, los cobros y todas las migraciones (v3 a v16) en el orden correcto.
+2. **SQL Editor > New query**: abre `supabase/00_instalacion_completa.sql`, busca el bloque **EDITA ESTAS 3 CIFRAS** y escribe las tasas de hoy (BCV Euro, Binance y BCV $). Pega TODO el archivo y pulsa **Run**. Carga el esquema, los pedidos 1 a 4, las ventas, los cobros y todas las migraciones (v3 a v18) en el orden correcto.
 3. **Authentication > Users > Add user > Create new user**: crea los usuarios de Juan, George y Rosanny con los mismos correos de la tabla `socios` (marca *Auto Confirm User*).
 4. **Authentication > Sign In / Providers**: desactiva *Allow new users to sign up*.
 5. **Project Settings > API**: copia el **Project URL** y la clave **anon public** (se usan al publicar).
 
-**Camino por pasos (si ya tienes la base y solo te falta una parte)** ejecuta, en este orden y solo lo que no hayas corrido: `schema.sql`, `seed_pedidos_1_2.sql`, `seed_pedido_3.sql`, `migracion_v3.sql` … `migracion_v7.sql`, guardar las 3 tasas de hoy en la app (*Tasa del día*), `migracion_v8.sql`, `v9`, `v10`, `v11`, `v12`, `cobros_30oct.sql` y `migracion_v13.sql`, `migracion_v14.sql` y `migracion_v16.sql` (reemplaza ventas y cobros con la información correcta). Las v11 a v14 y la v16 también vienen juntas en `entrega_v11_a_v16.sql`. Todas se pueden repetir sin duplicar datos (las cargas se anotan en `cargas_hechas`).
+**Camino por pasos (si ya tienes la base y solo te falta una parte)** ejecuta, en este orden y solo lo que no hayas corrido: `schema.sql`, `seed_pedidos_1_2.sql`, `seed_pedido_3.sql`, `migracion_v3.sql` … `migracion_v7.sql`, guardar las 3 tasas de hoy en la app (*Tasa del día*), `migracion_v8.sql`, `v9`, `v10`, `v11`, `v12`, `cobros_30oct.sql` y `migracion_v13.sql`, `migracion_v14.sql` y `migracion_v16.sql` (reemplaza ventas y cobros con la información correcta). Las v11 a v14, la v16, v17 y v18 también vienen juntas en `entrega_v11_a_v18.sql`. Todas se pueden repetir sin duplicar datos (las cargas se anotan en `cargas_hechas`).
 
 **Después de publicar:** la tienda pública está en `/tienda`. Entra a **Tienda online → Ajustes** y coloca el WhatsApp (ej. 584141234567), el mínimo al mayor (12) y tus métodos de pago. Banners en **Tienda online → Banners** (hasta 4, 1920 × 640 px). Fotos y precios en **Inventario → ✏️ Editar**.
 
@@ -111,7 +111,16 @@ En **Catálogo** hay una sección «Catálogo en PDF»: genera un PDF con portad
 ## Publicar sin Netlify
 - **Vercel** (gratis): importa el repositorio y agrega las mismas variables (`VITE_MODO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_URL_TIENDA`, `VITE_URL_VENDEDORAS`). `vercel.json` ya trae las rutas y `api/ficha.js` la vista previa del link `/p/ID`. Un proyecto por sitio (control, tienda, vendedoras), todos del mismo repositorio.
 - **Cloudflare Pages** (gratis): build `npm run build`, carpeta `dist`, mismas variables. Funciona la tienda y los links `?p=ID`; la vista previa bonita de `/p/ID` en WhatsApp solo existe en Netlify y Vercel.
-- Las migraciones v11 a v16 también vienen juntas en `supabase/entrega_v11_a_v16.sql`.
+- Las migraciones v11 a v18 también vienen juntas en `supabase/entrega_v11_a_v18.sql`.
+
+## Novedades v18
+- `migracion_v18.sql` (correr después de la v17): gastos con "a quién se le descuenta", tabla `retiros_socios` (bonificaciones/repartos) que bajan la caja, y el gasto del almuerzo ($35,94 = 32.022 Bs a 891,10) mitad Juan, mitad George.
+- Finanzas → Pagos a socios; Rentabilidad muestra "Ya recibió / Le falta recibir".
+- Clientes: se puede borrar una venta mal anotada (🗑️) o un cliente sin ventas.
+- Vendedoras: el mensaje de WhatsApp solo muestra el precio de venta de ella, sin consignación ni link de tienda.
+
+## Novedades v17
+- `migracion_v17.sql` registra los pagos del 2/11 y la compra de $50 en Binance (50.058,42 Bs). Caja: efectivo $80, Binance $126, banco 83.900 Bs.
 
 ## Novedades v16 (solo la app, sin SQL nuevo)
 - **Clientes**: la deuda es "todo lo comprado − todo lo abonado" (un abono de más en una compra cubre otra). Cada cliente muestra su estado de cuenta con los abonos debajo de cada compra, y un selector para **pasar un abono a otra compra**.

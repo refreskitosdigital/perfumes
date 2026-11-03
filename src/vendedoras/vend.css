@@ -118,3 +118,5 @@
   .vend .v-precios b { font-size: 17px; }
 }
 @media (prefers-reduced-motion: reduce) { .vend * { transition: none !important; animation: none !important; } }
+.v-precio-cliente { display: grid; gap: 4px; margin: 12px 0 8px; font-size: 14px; font-weight: 600; }
+.v-precio-cliente input { width: 100%; padding: 10px 12px; font-size: 16px; border-radius: 10px; border: 1px solid currentColor; background: transparent; color: inherit; }

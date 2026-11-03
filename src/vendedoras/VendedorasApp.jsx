@@ -177,9 +177,11 @@ function Ficha({ p, onCerrar, agregar, enCarro }) {
     const k = (e) => e.key === 'Escape' && onCerrar()
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
   }, [onCerrar])
-  const enlace = urlTienda ? `${urlTienda}/p/${p.id}` : ''
-  const texto = `${p.nombre}${p.marca ? ' · ' + p.marca : ''}${p.precio_sugerido != null ? '\nPrecio: ' + $(p.precio_sugerido) : ''}` +
-    (p.descripcion ? '\n' + p.descripcion.slice(0, 140) + (p.descripcion.length > 140 ? '…' : '') : '') + (enlace ? `\nMíralo aquí: ${enlace}` : '')
+  // Lo que ve el cliente por WhatsApp: SOLO el precio al que vende la vendedora (nunca la consignación ni el link de la tienda)
+  const [precioCliente, setPrecioCliente] = useState(String(p.precio_sugerido ?? p.precio_consigna ?? ''))
+  const bajoConsigna = num(precioCliente) < num(p.precio_consigna)
+  const texto = `${p.nombre}${p.marca ? ' · ' + p.marca : ''}${num(precioCliente) > 0 ? '\nPrecio: ' + $(precioCliente) : ''}` +
+    (p.descripcion ? '\n' + p.descripcion.slice(0, 140) + (p.descripcion.length > 140 ? '…' : '') : '') + (p.foto_url ? `\nFoto: ${p.foto_url}` : '')
   return (
     <div className="v-cortina" onClick={onCerrar}>
       <div className="v-modal" role="dialog" aria-modal="true" aria-label={p.nombre} onClick={(e) => e.stopPropagation()}>
@@ -200,8 +202,12 @@ function Ficha({ p, onCerrar, agregar, enCarro }) {
         {!p.descripcion && !p.notas && !p.tips_venta && <p className="v-nota">Aún no hay más información de este perfume.</p>}
         <small className={'v-disp ' + (p.disponible ? 'si' : 'no')}>{p.disponible ? 'Hay en existencia' : 'Se pide a la perfumería'}</small>
         <button className="v-btn" onClick={() => agregar(p)}>{enCarro ? 'Ver en mi pedido' : 'Agregar al pedido'}</button>
-        <a className="v-btn sec v-enlace" href={`https://wa.me/?text=${encodeURIComponent(texto)}`} target="_blank" rel="noopener noreferrer">Compartir por WhatsApp</a>
-        {!enlace && <p className="v-nota">Se comparte el texto del perfume. Para incluir el link de la tienda, la perfumería debe configurar VITE_URL_TIENDA.</p>}
+        <label className="v-precio-cliente">Precio al que le vendes a tu cliente
+          <input type="number" step="0.01" min={p.precio_consigna} inputMode="decimal" value={precioCliente} onChange={(e) => setPrecioCliente(e.target.value)} />
+        </label>
+        {bajoConsigna && <p className="v-nota">Tu precio no puede ser menor a tu consignación ({$(p.precio_consigna)}).</p>}
+        {!bajoConsigna && <a className="v-btn sec v-enlace" href={`https://wa.me/?text=${encodeURIComponent(texto)}`} target="_blank" rel="noopener noreferrer">Compartir por WhatsApp</a>}
+        <p className="v-nota">Tu cliente solo ve este precio. Nunca se comparte tu precio de consignación.</p>
       </div>
     </div>
   )

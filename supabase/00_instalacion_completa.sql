@@ -1,11 +1,11 @@
 -- =====================================================================
 -- INSTALACIÓN COMPLETA · de cero hasta la migración 14 (todo en un solo archivo)
 -- Úsalo en un proyecto de Supabase NUEVO y vacío. Si ya tienes la base funcionando,
--- NO lo uses: ejecuta solo lo que te falta (por ejemplo entrega_v11_a_v16.sql).
+-- NO lo uses: ejecuta solo lo que te falta (por ejemplo entrega_v11_a_v17.sql).
 --
 -- Orden que sigue este archivo:
 --   schema → seed pedidos 1 y 2 → seed pedido 3 → v3 → v4 → v5 → v6 → v7
---   → TASAS DE HOY (las 3 cifras que editas abajo) → v8 → v9 → v10 → v11 → v12 → cobros 30/10 → v13 → v14 → v16
+--   → TASAS DE HOY (las 3 cifras que editas abajo) → v8 → v9 → v10 → v11 → v12 → cobros 30/10 → v13 → v14 → v16 → v17
 --
 -- IMPORTANTE: busca el bloque "EDITA ESTAS 3 CIFRAS" (a mitad del archivo) y escribe las
 -- tasas de hoy. Si las dejas vacías, el archivo se detiene con un aviso.
@@ -2758,7 +2758,7 @@ end $$;
 --
 -- QUÉ HACE
 --  1. Borra TODAS las ventas y cobros actuales, las compras de divisa y los ajustes de caja de la v15.
---  2. Carga las 70 ventas de los lotes 1 a 4 con sus cobros (fecha, cuenta, monto y tasa de cada pago).
+--  2. Carga las 69 ventas de los lotes 1 a 4 con sus cobros (fecha, cuenta, monto y tasa de cada pago).
 --  3. NO toca pedidos, compras, aportes de los socios, préstamos ni gastos (taxi $11 y arroz chino $20 se mantienen).
 --  4. Registra la pérdida del Yara Candy defectuoso: 1 unidad menos en el P-003 y gasto operativo de $12 (sin tocar la caja).
 --  5. Cuadra la caja con lo que hay a la mano: efectivo $67, Binance $76 y banco 2.600 Bs.
@@ -2835,7 +2835,6 @@ begin
    (40,'P-003','Andreina (esposa de Ismael)','Wuilesmar','Lattafa Yara Clásico',1,25,'bcv',null),
    (41,'P-003','Jessica Green Hair','George','Lattafa Yara Candy Fem',1,30,'bcv','2026-11-17'),
    (42,'P-003','Jhoany Guitian','Rosanny','Lattafa Yara Candy Fem',1,35,'bcv',null),
-   (43,'P-003','Jesus Teran','Juan','Paco Rabanne Invictus Intense',1,20,'divisa',null),
    (44,'P-003','Jema de La Hoz','George','Paco Rabanne One Million Lucky',1,30,'divisa','2026-11-15'),
    (45,'P-003','Doris Teran','Juan','Fantasy',1,25,'divisa','2026-11-15'),
    (46,'P-003','Juan Perez','Juan','Armaf Odyssey Mandarin Sky Elixir',1,35,'divisa',null),
@@ -2977,3 +2976,114 @@ begin
 
   insert into cargas_hechas (clave) values ('v16_reemplazo_ventas');
 end $$;
+
+-- >>>>>>>>>> migracion_v17.sql <<<<<<<<<<
+-- =====================================================================
+-- MIGRACIÓN v17 · Pagos del 2/11 y compra de $50 en Binance
+-- Ejecutar DESPUÉS de migracion_v16.sql. Se aplica UNA sola vez aunque la repitas.
+--  Cobros (fecha 2/11):
+--   Wuile Kyomu · Starwalker           $13 efectivo (queda $2)
+--   María Fernanda Kyomu · Amber Rouge + Splash   44.606,42 Bs a tasa 991,25 = $45 (le queda La Bomba $35)
+--   Jesus Zapatero · Mandarin Sky Elixir          12.400 Bs a 992 = $12,50
+--   Elvys Castillo · Victorinox                   24.850 Bs contados como $25 (pagó completo)
+--   Wuile Kyomu · Bestia Negra                    13.902 Bs a 992 = $14,01
+--   Carola Carvajal · Mandarin Elixir + Yara Tous 35.600 Bs contados como $40 ($30 y $10)
+--  Compra de divisa: 50.058,42 Bs (44.100 + 5.958,42) por $50 en Binance.
+--  Caja resultante: efectivo $80, Binance $126, banco 83.900 Bs.
+-- =====================================================================
+do $$
+declare
+  r record; v_id bigint; bcv_ref numeric; tb numeric; cta text; delta numeric;
+  t_ef constant numeric := 80; t_bin constant numeric := 126; t_bs constant numeric := 83900;
+begin
+  if exists (select 1 from cargas_hechas where clave = 'v17_pagos_2nov') then
+    raise notice 'La v17 ya estaba aplicada. No se repite.'; return;
+  end if;
+  select bcv into bcv_ref from tasas where bcv > 0 order by fecha desc limit 1;
+  select binance into tb from tasas where binance > 0 order by fecha desc limit 1;
+  if tb is null then raise exception 'Guarda primero las tasas de hoy en la app (Tasa del día).'; end if;
+
+  for r in select * from (values
+      ('wuile kyomu',          'starwalker',  'efectivo', 13::numeric,   null::numeric),
+      ('maría fernanda kyomu', 'amber rouge', 'bs',       34693.22,      991.2538),
+      ('maría fernanda kyomu', 'splash',      'bs',       9913.20,       991.2538),
+      ('jesus zapatero',       'mandarin sky elixir', 'bs', 12400,       992),
+      ('elvys castillo',       'victorinox',  'bs',       24850,         994),
+      ('wuile kyomu',          'bestia negra','bs',       13902,         992),
+      ('carola carvajal',      'mandarin sky elixir', 'bs', 26700,       890),
+      ('carola carvajal',      'yara tous',   'bs',       8900,          890)
+    ) as t(cliente, perfume, cuenta, monto, tasa)
+  loop
+    select v.id into v_id from ventas_v v
+     where norm_txt(v.cliente) = norm_txt(r.cliente) and norm_txt(v.nombre) like '%' || norm_txt(r.perfume) || '%'
+       and v.pendiente_usd > 0.01
+     order by v.fecha, v.id limit 1;
+    if v_id is null then raise exception 'No encontré una venta con saldo de "%" para "%". No se aplicó nada.', r.cliente, r.perfume; end if;
+    insert into cobros (venta_id, fecha, cuenta, monto, tasa_bcv) values (v_id, '2026-11-02', r.cuenta, r.monto, r.tasa);
+  end loop;
+
+  -- Compra de $50 en Binance con 50.058,42 Bs
+  insert into conversiones (fecha, bs, divisa, cuenta, tasa_bcv, nota)
+  values ('2026-11-02', 50058.42, 50, 'binance', coalesce(bcv_ref, tb), 'Compra de $50 en Binance: 44.100 Bs + 5.958,42 Bs');
+
+  -- Si la caja no queda exactamente en el conteo real, la diferencia se anota aparte (inciso)
+  for cta, delta in
+    select c.cuenta, (case c.cuenta when 'efectivo' then t_ef when 'binance' then t_bin else t_bs end) - c.saldo
+    from caja_v c where c.cuenta in ('efectivo', 'binance', 'bs')
+  loop
+    if abs(delta) > 0.005 then
+      insert into movimientos (fecha, cuenta, monto, nota, concilia)
+      values ('2026-11-02', cta, round(delta, 2),
+              case when delta > 0 then 'Sobrante por conciliar: dinero en caja que no sale de las ventas registradas'
+                   else 'Faltante por conciliar: la caja real es menor a lo que muestran las ventas' end, true);
+      raise notice 'Ajuste de conciliación en %: %', cta, round(delta, 2);
+    end if;
+  end loop;
+
+  insert into cargas_hechas (clave) values ('v17_pagos_2nov');
+end $$;
+
+-- >>>>>>>>>> migracion_v18.sql <<<<<<<<<<
+-- =====================================================================
+-- MIGRACIÓN v18 · Gastos a cargo de ciertos socios, pagos/bonificaciones a socios y el almuerzo del 2/11
+-- Ejecutar DESPUÉS de migracion_v17.sql. Se aplica UNA sola vez aunque la repitas.
+--  1. gastos.socios: a quién se le descuenta el gasto (vacío = a todos los socios, como hasta ahora).
+--  2. retiros_socios: bonificaciones, reparto de ganancia u otros pagos a un socio. Descuentan de la caja.
+--  3. Gasto: almuerzo de Juan y George, 32.022 Bs a tasa BCV $ 891,10 = $35,94, mitad y mitad (no afecta a Rosanny).
+--     Lo pagaron ellos de su bolsillo, así que no baja la caja.
+-- =====================================================================
+alter table gastos add column if not exists socios text[];
+
+create table if not exists retiros_socios (
+  id bigint generated always as identity primary key,
+  fecha date not null default current_date,
+  socio text not null,
+  tipo text not null default 'bonificacion' check (tipo in ('bonificacion','reparto','otro')),
+  cuenta text not null check (cuenta in ('efectivo','binance','bs')),
+  monto numeric not null check (monto > 0),          -- en $ (efectivo/Binance) o en Bs (cuenta bs)
+  tasa numeric check (tasa > 0),                      -- solo Bs: tasa a la que se valora en dólares
+  monto_usd numeric not null check (monto_usd > 0),   -- lo que equivale en dólares
+  nota text,
+  registrado_por text default coalesce(auth.jwt() ->> 'email', '')
+);
+alter table retiros_socios enable row level security;
+drop policy if exists solo_socios on retiros_socios;
+create policy solo_socios on retiros_socios for all using (es_socio()) with check (es_socio());
+
+-- La caja: lo que se le paga a un socio sale de la cuenta de la que se tomó
+create or replace view caja_v with (security_invoker = true) as
+select cuenta, sum(monto) as saldo from (
+  select cuenta, monto from cobros
+  union all select cuenta, monto from movimientos
+  union all select cuenta, -monto from gastos where cuenta is not null
+  union all select cuenta, -monto from retiros_socios
+  union all select 'bs', -bs from conversiones
+  union all select cuenta, divisa from conversiones
+) x group by cuenta;
+
+-- Almuerzo del 2/11
+insert into gastos (fecha, categoria, concepto, monto, pedido_codigo, cuenta, pagado_por, socios)
+select '2026-11-02', 'otro', 'Almuerzo de Juan y George (32.022 Bs a tasa BCV $ 891,10)', round(32022 / 891.10, 2), null, null, 'Juan y George', array['Juan', 'George']
+where not exists (select 1 from gastos where concepto like 'Almuerzo de Juan y George%');
+
+insert into cargas_hechas (clave) values ('v18_socios_almuerzo') on conflict do nothing;

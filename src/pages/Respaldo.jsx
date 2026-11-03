@@ -9,7 +9,7 @@ import { hoy } from '../lib.js'
 export const TABLAS = [
   ['perfumes', 'Perfumes y catálogo'], ['compras', 'Compras'], ['pedidos', 'Pedidos de compra'], ['pedido_socios', 'Socios por pedido'],
   ['ventas', 'Ventas'], ['cobros', 'Cobros'], ['clientes', 'Clientes'], ['gastos', 'Gastos'], ['pagos', 'Pagos'],
-  ['prestamos', 'Préstamos'], ['movimientos', 'Movimientos de caja'], ['tasas', 'Tasas'], ['conversiones', 'Compras de divisa'], ['socios', 'Socios'],
+  ['prestamos', 'Préstamos'], ['movimientos', 'Movimientos de caja'], ['tasas', 'Tasas'], ['conversiones', 'Compras de divisa'], ['retiros_socios', 'Pagos a socios'], ['socios', 'Socios'],
   ['agenda_pedidos', 'Agenda de compra'], ['agenda_lineas', 'Agenda de compra · líneas'], ['agenda_socios', 'Agenda de compra · socios'],
   ['pedidos_web', 'Pedidos de la tienda'], ['pedidos_web_items', 'Pedidos de la tienda · líneas'], ['demanda_web', 'Perfumes agendados por clientes'],
   ['vendedoras', 'Vendedoras', 'id,nombre,usuario,activa,creada'], ['pedidos_vendedora', 'Pedidos de vendedoras'], ['pedidos_vendedora_items', 'Pedidos de vendedoras · líneas'],

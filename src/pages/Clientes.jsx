@@ -169,6 +169,18 @@ function Detalle({ c, cerrar, recargar, recargarVentas }) {
     Compras: c.lineas.map((l) => ({ Fecha: String(l.fecha).slice(0, 10), Perfume: l.nombre, Unidades: l.unidades, 'Precio unit $': num(l.precio_unit), 'Valor $': num(l.valor_usd), 'Abonado $': +num(l.cobrado_usd).toFixed(2), 'Debe $': +Math.max(num(l.pendiente_usd), 0).toFixed(2) })),
     Abonos: c.lineas.flatMap((l) => l.abonos.map((a) => ({ Fecha: String(a.fecha).slice(0, 10), Perfume: l.nombre, Cuenta: a.cuenta === 'bs' ? 'Bs' : '$ ' + a.cuenta, Monto: num(a.monto), 'Tasa BCV': a.cuenta === 'bs' ? a.tasa_usada : '', 'Equivale $': +a.eq.toFixed(2) }))),
   })
+  const borrarLinea = async (l) => {
+    if (!window.confirm(`¿Eliminar la venta de ${l.nombre} (${String(l.fecha).slice(0, 10)}, ${usd(l.valor_usd)})? Se borran también sus ${l.abonos.length} abono(s) y el perfume vuelve a estar en existencia. No se puede deshacer.`)) return
+    const r = await supabase.from('ventas').delete().eq('id', l.id)
+    setMsg(r.error ? { error: r.error.message, ok: '' } : { error: '', ok: 'Venta eliminada.' })
+    if (!r.error) recargarVentas()
+  }
+  const borrarCliente = async () => {
+    if (!window.confirm(`¿Eliminar a ${c.nombre} de la lista de clientes?`)) return
+    const r = await supabase.from('clientes').delete().eq('id', c.id)
+    if (r.error) return setMsg({ error: r.error.message, ok: '' })
+    recargar(); recargarVentas(); cerrar()
+  }
   const mover = async (abono, ventaId) => {
     const r = await supabase.from('cobros').update({ venta_id: Number(ventaId) }).eq('id', abono.id)
     setMsg(r.error ? { error: r.error.message, ok: '' } : { error: '', ok: 'Abono pasado a la otra compra.' })
@@ -196,6 +208,7 @@ function Detalle({ c, cerrar, recargar, recargarVentas }) {
         <Campo label="Teléfono"><input value={tel} onChange={(e) => setTel(e.target.value)} placeholder="0414-1234567" /></Campo>
         <Campo label="Notas (gustos, fechas, etc.)"><input value={notas} onChange={(e) => setNotas(e.target.value)} /></Campo>
         <button className="primario" onClick={guardar}>Guardar datos</button>
+        {!c.lineas.length && c.id && <button className="peligro" onClick={borrarCliente}>🗑️ Eliminar cliente</button>}
         {c.debe > 0.01 && enlace && <a className="boton-link" href={enlace} target="_blank" rel="noreferrer">💬 Recordar el pago por WhatsApp</a>}
       </div>
       <Aviso {...msg} />
@@ -213,7 +226,10 @@ function Detalle({ c, cerrar, recargar, recargarVentas }) {
                   <td className="num">{usd(l.cobrado_usd)}{demas && <> <Insignia tono="warn">de más</Insignia></>}</td>
                   <td className="num">{num(l.pendiente_usd) > 0.01 ? <b className="alerta">{usd(l.pendiente_usd)}</b> : '—'}</td>
                   <td>{l.vendedor}</td>
-                  <td><button onClick={() => setEditando(editando === l.id ? null : l.id)} aria-label="Editar venta y cobros">✏️</button></td>
+                  <td className="acciones">
+                    <button onClick={() => setEditando(editando === l.id ? null : l.id)} aria-label="Editar venta y cobros">✏️</button>
+                    <button onClick={() => borrarLinea(l)} aria-label="Eliminar esta venta" title="Eliminar esta venta">🗑️</button>
+                  </td>
                 </tr>,
                 ...l.abonos.map((a) => (
                   <tr key={'a' + a.id} className="sub">
@@ -246,7 +262,7 @@ function Detalle({ c, cerrar, recargar, recargarVentas }) {
 // Corrige una venta (fecha, unidades, precio) y los cobros que ya se registraron (monto, fecha, cuenta, tasa)
 function EditarVenta({ l, listo, cerrar }) {
   const cobros = useQuery(() => supabase.from('cobros').select('*').eq('venta_id', l.id).order('fecha').order('id'), [l.id])
-  const [v, setV] = useState({ fecha: String(l.fecha).slice(0, 10), unidades: l.unidades, precio_unit: l.precio_unit })
+  const [v, setV] = useState({ fecha: String(l.fecha).slice(0, 10), unidades: l.unidades, precio_unit: l.precio_unit, cliente: l.cliente || '', vendedor: l.vendedor || '' })
   const [nuevo, setNuevo] = useState({ fecha: String(l.fecha).slice(0, 10), cuenta: 'efectivo', monto: '', tasa_bcv: '' })
   const [msg, setMsg] = useState({ error: '', ok: '' })
   const [filas, setFilas] = useState([])
@@ -256,7 +272,15 @@ function EditarVenta({ l, listo, cerrar }) {
 
   const guardarVenta = async () => {
     if (!(num(v.unidades) >= 1) || num(v.precio_unit) < 0) return setMsg({ error: 'Revisa las unidades y el precio.', ok: '' })
-    fin(await supabase.from('ventas').update({ fecha: v.fecha, unidades: Math.round(num(v.unidades)), precio_unit: num(v.precio_unit) }).eq('id', l.id))
+    if (!v.cliente.trim()) return setMsg({ error: 'Escribe el nombre del cliente.', ok: '' })
+    fin(await supabase.from('ventas').update({ fecha: v.fecha, cliente: v.cliente.trim(), vendedor: v.vendedor.trim() || l.vendedor, unidades: Math.round(num(v.unidades)), precio_unit: num(v.precio_unit) }).eq('id', l.id))
+  }
+  const borrarVenta = async () => {
+    const n = filas.length
+    if (!window.confirm(`¿Eliminar esta venta de ${l.nombre} a ${l.cliente}?${n ? ` También se borrarán sus ${n} cobro(s).` : ''} El perfume vuelve a estar en existencia. No se puede deshacer.`)) return
+    const r = await supabase.from('ventas').delete().eq('id', l.id)
+    if (r.error) return setMsg({ error: r.error.message, ok: '' })
+    listo(); cerrar()
   }
   const cambiar = (id, k, val) => setFilas((fs) => fs.map((f) => (f.id === id ? { ...f, [k]: val } : f)))
   const guardarCobro = async (f) => {
@@ -276,12 +300,15 @@ function EditarVenta({ l, listo, cerrar }) {
 
   return (
     <div className="editar-venta">
-      <h4>Corregir venta: {l.nombre}</h4>
+      <h4>Corregir o eliminar la venta: {l.nombre}</h4>
       <div className="form">
+        <Campo label="Cliente"><input value={v.cliente} onChange={(e) => setV({ ...v, cliente: e.target.value })} /></Campo>
+        <Campo label="Vendió"><input value={v.vendedor} onChange={(e) => setV({ ...v, vendedor: e.target.value })} /></Campo>
         <Campo label="Fecha"><input type="date" value={v.fecha} onChange={(e) => setV({ ...v, fecha: e.target.value })} /></Campo>
         <Campo label="Unidades"><input type="number" min="1" step="1" value={v.unidades} onChange={(e) => setV({ ...v, unidades: e.target.value })} /></Campo>
         <Campo label={`Precio por unidad ($)`}><input type="number" min="0" step="0.01" value={v.precio_unit} onChange={(e) => setV({ ...v, precio_unit: e.target.value })} /></Campo>
         <button className="primario" onClick={guardarVenta}>Guardar venta</button>
+        <button className="peligro" onClick={borrarVenta}>🗑️ Eliminar esta venta</button>
       </div>
       <p className="ayuda">Total de la venta: <b>{usd(num(v.unidades) * num(v.precio_unit))}</b>. Si cambias las unidades, el inventario se ajusta solo.</p>
       <h4>Cobros de esta venta</h4>

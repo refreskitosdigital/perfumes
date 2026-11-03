@@ -14,7 +14,7 @@ export const CATEGORIAS = {
   otro: '🧾 Otro',
 }
 
-const vacio = (socio) => ({ fecha: hoy(), categoria: 'delivery', concepto: '', monto: '', pedido: '', origen: 'socio', pagado_por: socio || '' })
+const vacio = (socio) => ({ fecha: hoy(), categoria: 'delivery', concepto: '', monto: '', pedido: '', origen: 'socio', pagado_por: socio || '', socios: [] })
 
 export default function Gastos() {
   const { socios, miSocio } = useApp()
@@ -37,6 +37,7 @@ export default function Gastos() {
       pedido_codigo: f.pedido || null,
       cuenta: f.origen === 'socio' ? null : f.origen,
       pagado_por: f.origen === 'socio' ? (f.pagado_por || null) : null,
+      socios: !f.pedido && f.socios.length ? f.socios : null,
     })
     if (error) return setMsg({ error: error.message, ok: '' })
     setMsg({ error: '', ok: `Gasto de ${usd(f.monto)} registrado.` })
@@ -70,6 +71,16 @@ export default function Gastos() {
                 {pedidos.data.map((p) => <option key={p.codigo} value={p.codigo}>{p.codigo}</option>)}
               </select>
             </Campo>
+            {!f.pedido && (
+              <Campo label="¿A quién se le descuenta?" ayuda={f.socios.length ? `Se reparte en partes iguales entre: ${f.socios.join(', ')}.` : 'Si no marcas a nadie, se reparte entre todos los socios.'}>
+                <div className="checks">
+                  {socios.map((n) => (
+                    <label key={n}><input type="checkbox" checked={f.socios.includes(n)}
+                      onChange={(e) => setF({ ...f, socios: e.target.checked ? [...f.socios, n] : f.socios.filter((x) => x !== n) })} /> {n}</label>
+                  ))}
+                </div>
+              </Campo>
+            )}
             <Campo label="¿Quién lo pagó?">
               <select value={f.origen} onChange={set('origen')}>
                 <option value="socio">Lo puso un socio de su bolsillo</option>
@@ -106,6 +117,7 @@ export default function Gastos() {
           { k: 'categoria', t: 'Tipo', f: (g) => CATEGORIAS[g.categoria] || g.categoria },
           { k: 'concepto', t: 'Detalle' },
           { k: 'pedido_codigo', t: 'Pedido', f: (g) => g.pedido_codigo || 'General' },
+          { k: 'socios', t: 'A cargo de', f: (g) => (g.pedido_codigo ? 'Socios del pedido' : g.socios?.length ? g.socios.join(' y ') : 'Todos') },
           { k: 'origen', t: 'Pagó', f: (g) => (g.cuenta ? `Caja ${g.cuenta}` : g.pagado_por || 'Un socio') },
           { k: 'monto', t: 'Monto', num: true, f: (g) => usd(g.monto) },
           { k: 'x', t: '', f: (g) => <button onClick={() => borrar(g)} aria-label="Eliminar gasto">🗑️</button> },
