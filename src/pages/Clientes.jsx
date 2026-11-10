@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabase.js'
 import { useQuery } from '../hooks.js'
+import { useApp } from '../App.jsx'
 import { Seccion, Campo, Tarjeta, Aviso, Guia, Insignia } from '../ui.jsx'
-import { usd, num, normNombre, waLink } from '../lib.js'
+import { hoy, usd, num, normNombre, waLink, tasaVenta } from '../lib.js'
 import { descargarExcel } from '../excel.js'
 
 const MEDALLA = ['🥇', '🥈', '🥉']
@@ -255,7 +256,74 @@ function Detalle({ c, cerrar, recargar, recargarVentas }) {
           </tbody>
         </table>
       </div>
+      <AgregarPerfume c={c} listo={recargarVentas} />
     </Seccion></div>
+  )
+}
+
+// Agrega un perfume que faltó anotar a la cuenta de este cliente (misma lista, mismos abonos)
+function AgregarPerfume({ c, listo }) {
+  const { perfumes, tasa, miSocio } = useApp()
+  const peds = useQuery(() => supabase.from('pedidos').select('codigo').order('codigo'), [])
+  const [abierto, setAbierto] = useState(false)
+  const ultima = c.lineas[0]
+  const vacio = () => ({ perfume_id: '', pedido: '', unidades: 1, precio: '', fecha: hoy(), vendedor: ultima?.vendedor || miSocio?.nombre || '', vence: '' })
+  const [f, setF] = useState(vacio)
+  const [msg, setMsg] = useState({ error: '', ok: '' })
+  const [guardando, setGuardando] = useState(false)
+  const set = (k) => (e) => setF({ ...f, [k]: e.target.value })
+  const elegir = (id) => {
+    const p = perfumes.data.find((x) => String(x.id) === String(id))
+    setF({ ...f, perfume_id: id, precio: f.precio || (p?.precio_detal ?? '') })
+  }
+  const guardar = async () => {
+    if (!f.perfume_id) return setMsg({ error: 'Elige el perfume.', ok: '' })
+    if (!(num(f.unidades) >= 1)) return setMsg({ error: 'Revisa las unidades.', ok: '' })
+    if (!(num(f.precio) > 0) && !window.confirm('El perfume queda con precio $0. ¿Guardar igual?')) return
+    setGuardando(true)
+    const tv = tasaVenta(tasa) || 1
+    const r = await supabase.from('ventas').insert({
+      fecha: f.fecha, cliente: c.nombre, vendedor: f.vendedor.trim() || miSocio?.nombre || 'Juan', perfume_id: Number(f.perfume_id),
+      pedido_codigo: f.pedido || null, unidades: Math.round(num(f.unidades)), precio_unit: num(f.precio), base: 'divisa',
+      tasa_bcv: tv, tasa_binance: num(tasa?.binance) || tv, vence: f.vence || null,
+    })
+    setGuardando(false)
+    if (r.error) return setMsg({ error: r.error.message, ok: '' })
+    setMsg({ error: '', ok: 'Perfume agregado a la cuenta de ' + c.nombre + '.' })
+    setF(vacio()); listo()
+  }
+  return (
+    <div style={{ marginTop: 12 }}>
+      {!abierto && <button onClick={() => setAbierto(true)}>➕ Agregar un perfume a esta cuenta</button>}
+      {abierto && (
+        <div className="editar-venta">
+          <h4>Agregar un perfume que faltó anotar a {c.nombre}</h4>
+          <div className="form">
+            <Campo label="Perfume">
+              <select value={f.perfume_id} onChange={(e) => elegir(e.target.value)}>
+                <option value="">Elige…</option>
+                {perfumes.data.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Pedido de donde salió (opcional)">
+              <select value={f.pedido} onChange={set('pedido')}>
+                <option value="">Sin pedido</option>
+                {peds.data.map((p) => <option key={p.codigo} value={p.codigo}>{p.codigo}</option>)}
+              </select>
+            </Campo>
+            <Campo label="Unidades"><input type="number" min="1" step="1" value={f.unidades} onChange={set('unidades')} /></Campo>
+            <Campo label="Precio por unidad ($)"><input type="number" min="0" step="0.01" value={f.precio} onChange={set('precio')} /></Campo>
+            <Campo label="Fecha"><input type="date" value={f.fecha} onChange={set('fecha')} /></Campo>
+            <Campo label="Vendió"><input value={f.vendedor} onChange={set('vendedor')} /></Campo>
+            <Campo label="Paga el (opcional)"><input type="date" value={f.vence} onChange={set('vence')} /></Campo>
+            <button className="primario" onClick={guardar} disabled={guardando}>Agregar perfume</button>
+            <button onClick={() => setAbierto(false)}>Cerrar</button>
+          </div>
+          <p className="ayuda">Total: <b>{usd(num(f.unidades) * num(f.precio))}</b>. Los abonos ya hechos se quedan en las otras compras; si alguno era de este perfume, usa "Pasar a otra compra".</p>
+          <Aviso {...msg} />
+        </div>
+      )}
+    </div>
   )
 }
 

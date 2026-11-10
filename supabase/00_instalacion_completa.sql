@@ -3087,3 +3087,302 @@ select '2026-11-02', 'otro', 'Almuerzo de Juan y George (32.022 Bs a tasa BCV $ 
 where not exists (select 1 from gastos where concepto like 'Almuerzo de Juan y George%');
 
 insert into cargas_hechas (clave) values ('v18_socios_almuerzo') on conflict do nothing;
+
+-- >>>>>>>>>> migracion_v19.sql <<<<<<<<<<
+-- =====================================================================
+-- MIGRACIÓN v19 · El almuerzo del 2/11 se pagó del banco (Bs)
+-- Ejecutar DESPUÉS de migracion_v18.sql. Se aplica UNA sola vez.
+-- 32.022 Bs a tasa BCV $ 891,10 salen de la caja en bolívares: 16.011 Bs a cargo de Juan y 16.011 Bs a cargo de George ($17,97 cada uno).
+-- Rosanny no se afecta. Se quita el gasto del almuerzo de la v18 para no descontarlo dos veces.
+-- =====================================================================
+do $$
+begin
+  if exists (select 1 from cargas_hechas where clave = 'v19_almuerzo_banco') then
+    raise notice 'La v19 ya estaba aplicada. No se repite.'; return;
+  end if;
+
+  delete from gastos where concepto like 'Almuerzo de Juan y George%';
+
+  insert into retiros_socios (fecha, socio, tipo, cuenta, monto, tasa, monto_usd, nota)
+  select '2026-11-02', s, 'otro', 'bs', 16011, 891.10, round(16011 / 891.10, 2),
+         'Almuerzo de Juan y George: 32.022 Bs a tasa BCV $ 891,10 (mitad cada uno)'
+  from unnest(array['Juan','George']) s;
+
+  insert into cargas_hechas (clave) values ('v19_almuerzo_banco');
+end $$;
+
+-- >>>>>>>>>> migracion_v20.sql <<<<<<<<<<
+-- =====================================================================
+-- MIGRACIÓN v20 · Pagos del 3/11 y del 5/11 + venta nueva de 212 VIP Rose a Johenis
+-- Ejecutar DESPUÉS de migracion_v19.sql. Se aplica UNA sola vez aunque la repitas.
+--  Venta nueva: Carolina Herrera 212 VIP Rose Fem a Johenis Canguro, $25 (costo $13,50, comprada el 5/11 en el pedido P-005).
+--  Cobros (se cuentan los $ dichos; la tasa guardada es Bs ÷ $, igual que en la v17):
+--   3/11  Johenis Canguro   11.975 Bs  = $12,50 (mitad del 212 VIP Rose, tasa euro 991,25)
+--   3/11  María Fernanda Kyomu  34.927,28 Bs = $35 (La Bomba, tasa euro 991,25)
+--   3/11  Rosanny Cequea    13.350 Bs  = $15 (splash, BCV $ 889)
+--   5/11  Carlos Gonzales (Wuile)  12.575,41 Bs = $12,50 (mitad, tasa euro 1.000)
+--   5/11  Veronica          $20 en efectivo (212 VIP Rose Fem)
+--   5/11  Lori Teran        25.150,82 Bs = $25 (Mod Blush, tasa 1.000)
+--   5/11  Rosalba Guitian   13.423,31 Bs = $15 (Good Girl, BCV $ 894)
+-- =====================================================================
+do $$
+declare
+  r record; v_id bigint; v_perf bigint; tb numeric; tbcv numeric;
+begin
+  if exists (select 1 from cargas_hechas where clave = 'v20_pagos_3_5nov') then
+    raise notice 'La v20 ya estaba aplicada. No se repite.'; return;
+  end if;
+  select binance into tb from tasas where binance > 0 order by fecha desc limit 1;
+  select bcv into tbcv from tasas where bcv > 0 order by fecha desc limit 1;
+  if tb is null then raise exception 'Guarda primero las tasas de hoy en la app (Tasa del día).'; end if;
+
+  -- ---------- Pedido P-005: 1 unidad de 212 VIP Rose Fem a $13,50 (comprada el 5/11) ----------
+  select id into v_perf from perfumes
+   where norm_txt(nombre) = norm_txt('Carolina Herrera 212 VIP Rose Fem')
+      or norm_txt(nombre) like '%212 vip rose%' order by id limit 1;
+  if v_perf is null then raise exception 'No encontré el perfume 212 VIP Rose en el catálogo.'; end if;
+
+  insert into pedidos (codigo, fecha, proveedor, envio) values ('P-005', '2026-11-05', null, 0) on conflict do nothing;
+  insert into pedido_socios (pedido_codigo, socio, aporte, participacion) values
+    ('P-005', 'Juan', 4.50, 1.0/3), ('P-005', 'George', 4.50, 1.0/3), ('P-005', 'Rosanny', 4.50, 1.0/3)
+  on conflict do nothing;
+  insert into compras (pedido_codigo, perfume_id, unidades, costo_unitario) values ('P-005', v_perf, 1, 13.50);
+
+  -- ---------- Venta a Johenis Canguro (3/11) ----------
+  insert into ventas (fecha, cliente, vendedor, perfume_id, pedido_codigo, unidades, precio_unit, base, tasa_bcv, tasa_binance)
+  values ('2026-11-03', 'Johenis Canguro', 'Juan', v_perf, 'P-005', 1, 25, 'divisa',
+          coalesce((select bcv from tasas where fecha <= '2026-11-03' and bcv > 0 order by fecha desc limit 1), tbcv, tb),
+          coalesce((select binance from tasas where fecha <= '2026-11-03' and binance > 0 order by fecha desc limit 1), tb));
+
+  -- ---------- Cobros ----------
+  for r in select * from (values
+      ('2026-11-03'::date, 'johenis canguro',         '212 vip rose',  'bs',       11975::numeric,  12.50::numeric),
+      ('2026-11-03',       'maría fernanda kyomu',    'bomba',         'bs',       34927.28,        35),
+      ('2026-11-03',       'rosanny cequea',          'splash',        'bs',       13350,           15),
+      ('2026-11-05',       'carlos gonzales',         '',              'bs',       12575.41,        12.50),
+      ('2026-11-05',       'veronica',                '212 vip rose',  'efectivo', 20,              20),
+      ('2026-11-05',       'lori teran',              'mod blush',     'bs',       25150.82,        25),
+      ('2026-11-05',       'rosalba guitian',         'good girl',     'bs',       13423.31,        15)
+    ) as t(fecha, cliente, perfume, cuenta, monto, usd)
+  loop
+    v_id := null;
+    select v.id into v_id from ventas_v v
+     where norm_txt(v.cliente) like norm_txt(r.cliente) || '%' and norm_txt(v.nombre) like '%' || norm_txt(r.perfume) || '%'
+       and v.pendiente_usd > 0.01
+     order by v.fecha, v.id limit 1;
+    if v_id is null then raise exception 'No encontré una venta con saldo de "%" (%). No se aplicó nada.', r.cliente, r.perfume; end if;
+    insert into cobros (venta_id, fecha, cuenta, monto, tasa_bcv)
+    values (v_id, r.fecha, r.cuenta, r.monto, case when r.cuenta = 'bs' then round(r.monto / r.usd, 4) end);
+  end loop;
+
+  insert into cargas_hechas (clave) values ('v20_pagos_3_5nov');
+end $$;
+
+-- >>>>>>>>>> migracion_v21.sql <<<<<<<<<<
+-- =====================================================================
+-- MIGRACIÓN v21 · Compras de divisa y de perfumes del 5/11, cobros de Kyuran y Jean Mary, cuadre de caja
+-- Ejecutar DESPUÉS de migracion_v20.sql. Se aplica UNA sola vez aunque la repitas.
+--  1. Pago a Refreskitos (Juan) del 2/11: 29.760 Bs a tasa 992 = $30 (solo si no lo habías anotado ya).
+--  2. Compras de divisa con bolívares (5/11): $30 a Binance (30.000 Bs) y $20 + $30 + $15 en efectivo (20.000 + 30.000 + 15.000 Bs), a 1.000 Bs por $.
+--  3. Compra de perfumes para el P-005: 212 VIP Rose + Odyssey Home nuevo, $13,50 cada uno = $27 (27.351 Bs del banco).
+--     El aporte del P-005 sube de $13,50 a $27 ($9 cada socio).
+--  4. Kyuran paga $40 por Binance (Lacoste $30 + splash $10). Pagó $50: los $10 de vuelto se le dieron en Bs (10.000 Bs a 1.000).
+--  5. Jean Mary de la Hoz abona $60 por Binance a sus ventas más antiguas con saldo.
+--  6. Cuadre al conteo real: efectivo $165, Binance $216, banco 41.297 Bs. Cualquier diferencia se anota aparte
+--     como "Sobrante/Faltante por conciliar" (inciso), sin tocar lo demás.
+-- =====================================================================
+do $$
+declare
+  r record; v_id bigint; v_perf bigint; bcv_ref numeric; tb numeric; cta text; delta numeric; resto numeric; aplica numeric;
+  t_ef constant numeric := 165; t_bin constant numeric := 216; t_bs constant numeric := 41297;
+begin
+  if exists (select 1 from cargas_hechas where clave = 'v21_compras_5nov') then
+    raise notice 'La v21 ya estaba aplicada. No se repite.'; return;
+  end if;
+  select bcv into bcv_ref from tasas where bcv > 0 order by fecha desc limit 1;
+  select binance into tb from tasas where binance > 0 order by fecha desc limit 1;
+  if tb is null then raise exception 'Guarda primero las tasas de hoy en la app (Tasa del día).'; end if;
+
+  -- 1. Pago a Juan (si no estaba)
+  insert into retiros_socios (fecha, socio, tipo, cuenta, monto, tasa, monto_usd, nota)
+  select '2026-11-02', 'Juan', 'reparto', 'bs', 29760, 992, 30, 'Pago a Refreskitos: 29.760 Bs a tasa 992 = $30'
+  where not exists (select 1 from retiros_socios where fecha = '2026-11-02' and socio = 'Juan' and monto = 29760);
+
+  -- 2. Compras de divisa
+  insert into conversiones (fecha, bs, divisa, cuenta, tasa_bcv, nota) values
+    ('2026-11-05', 30000, 30, 'binance',  coalesce(bcv_ref, tb), 'Compra de $30 en Binance a 1.000'),
+    ('2026-11-05', 20000, 20, 'efectivo', coalesce(bcv_ref, tb), 'Compra de $20 en efectivo a Rosangela a 1.000'),
+    ('2026-11-05', 30000, 30, 'efectivo', coalesce(bcv_ref, tb), 'Compra de $30 en efectivo a 1.000'),
+    ('2026-11-05', 15000, 15, 'efectivo', coalesce(bcv_ref, tb), 'Compra de $15 en efectivo a 1.000');
+
+  -- 3. Perfumes del P-005 (212 VIP Rose ya está) + Odyssey Home nuevo
+  insert into perfumes (nombre) values ('Odyssey Home') on conflict do nothing;
+  select id into v_perf from perfumes where lower(trim(nombre)) = 'odyssey home';
+  insert into compras (pedido_codigo, perfume_id, unidades, costo_unitario) values ('P-005', v_perf, 1, 13.50);
+  update pedido_socios set aporte = 9 where pedido_codigo = 'P-005';
+  insert into movimientos (fecha, cuenta, monto, nota)
+  values ('2026-11-05', 'bs', -27351, 'Compra de perfumes P-005: 212 VIP Rose + Odyssey Home ($27 a $13,50 c/u)');
+
+  -- 4. Kyuran: $40 por Binance y $10 de vuelto en Bs
+  for r in select * from (values ('lacoste white', 30::numeric), ('splash', 10::numeric)) as t(perfume, usd) loop
+    v_id := null;
+    select v.id into v_id from ventas_v v
+     where norm_txt(v.cliente) = 'kyuran' and norm_txt(v.nombre) like '%' || norm_txt(r.perfume) || '%' and v.pendiente_usd > 0.01
+     order by v.fecha, v.id limit 1;
+    if v_id is null then raise exception 'No encontré una venta con saldo de Kyuran (%). No se aplicó nada.', r.perfume; end if;
+    insert into cobros (venta_id, fecha, cuenta, monto) values (v_id, '2026-11-05', 'binance', r.usd);
+  end loop;
+  insert into movimientos (fecha, cuenta, monto, nota) values
+    ('2026-11-05', 'binance', 10, 'Kyuran pagó $50 por Binance y debía $40: $10 de vuelto'),
+    ('2026-11-05', 'bs', -10000, 'Vuelto a Kyuran: $10 en Bs a 1.000');
+
+  -- 5. Jean Mary de la Hoz: $60 a sus ventas más antiguas con saldo
+  resto := 60;
+  for r in select v.id, v.pendiente_usd from ventas_v v
+            where norm_txt(v.cliente) like norm_txt('jean mary') || '%' and v.pendiente_usd > 0.01 order by v.fecha, v.id loop
+    exit when resto <= 0.005;
+    aplica := least(resto, r.pendiente_usd);
+    insert into cobros (venta_id, fecha, cuenta, monto) values (r.id, '2026-11-05', 'binance', round(aplica, 2));
+    resto := resto - aplica;
+  end loop;
+  if resto > 0.01 then raise exception 'A Jean Mary de la Hoz le sobran $% sin venta con saldo. No se aplicó nada.', round(resto, 2); end if;
+
+  -- 6. Cuadre al conteo real (la diferencia queda como inciso aparte)
+  for cta, delta in
+    select c.cuenta, (case c.cuenta when 'efectivo' then t_ef when 'binance' then t_bin else t_bs end) - c.saldo
+    from caja_v c where c.cuenta in ('efectivo', 'binance', 'bs')
+  loop
+    if abs(delta) > 0.005 then
+      insert into movimientos (fecha, cuenta, monto, nota, concilia)
+      values ('2026-11-05', cta, round(delta, 2),
+              case when delta > 0 then 'Sobrante por conciliar: dinero en caja que no sale de lo registrado'
+                   else 'Faltante por conciliar: la caja real es menor a lo registrado' end, true);
+      raise notice 'Ajuste de conciliación en %: %', cta, round(delta, 2);
+    end if;
+  end loop;
+
+  insert into cargas_hechas (clave) values ('v21_compras_5nov');
+end $$;
+
+-- >>>>>>>>>> migracion_v22.sql <<<<<<<<<<
+-- =====================================================================
+-- MIGRACIÓN v22 · Dos correcciones al cuadre del 5/11
+-- Ejecutar DESPUÉS de migracion_v21.sql. Se aplica UNA sola vez aunque la repitas.
+--  1. Los $50 que faltaban en Binance están guardados en Zelle: se aclara en la nota del ajuste.
+--  2. Del conteo de 41.297 Bs se descuentan 10.000 del vuelto de Kyuran (conteo real: 31.297 Bs).
+-- =====================================================================
+do $$
+begin
+  if exists (select 1 from cargas_hechas where clave = 'v22_zelle_vuelto') then
+    raise notice 'La v22 ya estaba aplicada. No se repite.'; return;
+  end if;
+
+  update movimientos
+     set nota = 'Estos $50 no están en Binance: están guardados en Zelle'
+   where concilia and cuenta = 'binance' and monto = -50 and fecha = '2026-11-05';
+
+  insert into movimientos (fecha, cuenta, monto, nota, concilia)
+  values ('2026-11-05', 'bs', -10000, 'Corrección del conteo: de los 41.297 Bs se descuentan 10.000 del vuelto de Kyuran (conteo real 31.297 Bs)', true);
+
+  insert into cargas_hechas (clave) values ('v22_zelle_vuelto');
+end $$;
+
+-- >>>>>>>>>> migracion_v23.sql <<<<<<<<<<
+-- =====================================================================
+-- MIGRACIÓN v23 · Abono de $20 en efectivo del cliente Carpintero (5/11)
+-- Ejecutar DESPUÉS de migracion_v22.sql. Se aplica UNA sola vez aunque la repitas.
+-- Carpintero compró el Bharara Viking Kashmir ($45): abona $20 y le quedan $25.
+-- =====================================================================
+do $$
+declare v_id bigint;
+begin
+  if exists (select 1 from cargas_hechas where clave = 'v23_carpintero_5nov') then
+    raise notice 'La v23 ya estaba aplicada. No se repite.'; return;
+  end if;
+  select v.id into v_id from ventas_v v
+   where norm_txt(v.cliente) = 'carpintero' and v.pendiente_usd > 0.01 order by v.fecha, v.id limit 1;
+  if v_id is null then raise exception 'No encontré una venta con saldo del cliente Carpintero. No se aplicó nada.'; end if;
+  insert into cobros (venta_id, fecha, cuenta, monto) values (v_id, '2026-11-05', 'efectivo', 20);
+  insert into cargas_hechas (clave) values ('v23_carpintero_5nov');
+end $$;
+
+-- >>>>>>>>>> migracion_v24.sql <<<<<<<<<<
+-- =====================================================================
+-- MIGRACIÓN v24 · Pagos del 6/11 y del 9/11
+-- Ejecutar DESPUÉS de migracion_v23.sql. Se aplica UNA sola vez aunque la repitas.
+-- Cada pago se aplica a las ventas más antiguas del cliente que tengan saldo.
+-- Se cuentan los $ dichos; la tasa guardada es Bs ÷ $ (igual que en v17 y v20).
+--   6/11  Hijo del Carpintero  13.410 Bs = $15 (BCV $ 894)
+--   (Luisa Teran, 17.500 Bs = $20, queda aparte: solo debía $15)
+--   6/11  Jessica Green Hair   26.910 Bs = $30 (BCV $ 897)
+--   6/11  Yeimy Green Hair     $30 en efectivo
+--   9/11  Jesus Zapatero       12.514 Bs = $12,50 (BCV $ 897,53)
+-- =====================================================================
+do $$
+declare
+  r record; s record; resto numeric; aplica numeric;
+begin
+  if exists (select 1 from cargas_hechas where clave = 'v24_pagos_6_9nov') then
+    raise notice 'La v24 ya estaba aplicada. No se repite.'; return;
+  end if;
+
+  for r in select * from (values
+      ('2026-11-06'::date, 'hijo del carpintero', 'bs',       13410::numeric,  15::numeric),
+      ('2026-11-06',       'jessica green hair',  'bs',       26910,           30),
+      ('2026-11-06',       'yeimy green hair',    'efectivo', 30,              30),
+      ('2026-11-09',       'jesus zapatero',      'bs',       12514,           12.50)
+    ) as t(fecha, cliente, cuenta, monto, usd)
+  loop
+    resto := r.usd;
+    for s in select v.id, v.pendiente_usd from ventas_v v
+              where norm_txt(v.cliente) = norm_txt(r.cliente) and v.pendiente_usd > 0.01 order by v.fecha, v.id loop
+      exit when resto <= 0.005;
+      aplica := least(resto, s.pendiente_usd);
+      insert into cobros (venta_id, fecha, cuenta, monto, tasa_bcv)
+      values (s.id, r.fecha, r.cuenta,
+              case when r.cuenta = 'bs' then round(r.monto * aplica / r.usd, 2) else round(aplica, 2) end,
+              case when r.cuenta = 'bs' then round(r.monto / r.usd, 4) end);
+      resto := resto - aplica;
+    end loop;
+    if resto > 0.01 then raise exception 'A "%" le sobran $% sin venta con saldo. No se aplicó nada.', r.cliente, round(resto, 2); end if;
+  end loop;
+
+  insert into cargas_hechas (clave) values ('v24_pagos_6_9nov');
+end $$;
+
+-- >>>>>>>>>> migracion_v25.sql <<<<<<<<<<
+-- =====================================================================
+-- MIGRACIÓN v25 · Cuarto perfume de Jean Mary de la Hoz: Paco Rabanne One Million Lucky
+-- Ejecutar DESPUÉS de migracion_v24.sql. Se aplica UNA sola vez aunque la repitas.
+-- En la carga del P-003 ese perfume quedó a nombre de "Jema de La Hoz" (error de escritura): se pasa a Jean Mary de la Hoz.
+-- Si no existía esa venta, se crea ($30 · P-003 · vence 15/11 · vendedor George).
+-- =====================================================================
+do $$
+declare v_perf bigint; n int;
+begin
+  if exists (select 1 from cargas_hechas where clave = 'v25_jean_mary_cuarto') then
+    raise notice 'La v25 ya estaba aplicada. No se repite.'; return;
+  end if;
+
+  update ventas set cliente = 'Jean Mary de la Hoz'
+   where norm_txt(cliente) in ('jemadelahoz', 'jeanmarydelahoz', 'jeanmarydelahoz')
+     and perfume_id in (select id from perfumes where norm_txt(nombre) like '%onemillionlucky%')
+     and cliente <> 'Jean Mary de la Hoz';
+  get diagnostics n = row_count;
+
+  if n = 0 and not exists (select 1 from ventas v join perfumes p on p.id = v.perfume_id
+                           where norm_txt(v.cliente) = 'jeanmarydelahoz' and norm_txt(p.nombre) like '%onemillionlucky%') then
+    select id into v_perf from perfumes where norm_txt(nombre) like '%onemillionlucky%' order by id limit 1;
+    if v_perf is null then raise exception 'No encontré Paco Rabanne One Million Lucky en el catálogo.'; end if;
+    insert into ventas (fecha, cliente, vendedor, perfume_id, pedido_codigo, unidades, precio_unit, base, tasa_bcv, tasa_binance, vence)
+    values ('2026-10-30', 'Jean Mary de la Hoz', 'George', v_perf, 'P-003', 1, 30, 'divisa',
+            (select bcv from tasas where bcv > 0 order by fecha desc limit 1),
+            (select binance from tasas where binance > 0 order by fecha desc limit 1), '2026-11-15');
+  end if;
+
+  -- Si había un cliente "Jema de La Hoz" suelto en la lista y ya no tiene ventas, se quita
+  delete from clientes c where norm_txt(c.nombre) = 'jemadelahoz'
+    and not exists (select 1 from ventas v where norm_txt(v.cliente) = 'jemadelahoz');
+
+  insert into cargas_hechas (clave) values ('v25_jean_mary_cuarto');
+end $$;
