@@ -8,7 +8,7 @@ Reparto de ganancias 50/50. Datos en Supabase, código en GitHub, publicada en N
 ### 1. Supabase (la base de datos)
 **Camino rápido (proyecto de Supabase nuevo y vacío)**
 1. Entra a https://supabase.com, crea una cuenta y un **New project** (nombre: `perfumes`; guarda la clave de base de datos).
-2. **SQL Editor > New query**: abre `supabase/00_instalacion_completa.sql`, busca el bloque **EDITA ESTAS 3 CIFRAS** y escribe las tasas de hoy (BCV Euro, Binance y BCV $). Pega TODO el archivo y pulsa **Run**. Carga el esquema, los pedidos 1 a 4, las ventas, los cobros y todas las migraciones (v3 a v25) en el orden correcto.
+2. **SQL Editor > New query**: abre `supabase/00_instalacion_completa.sql`, busca el bloque **EDITA ESTAS 3 CIFRAS** y escribe las tasas de hoy (BCV Euro, Binance y BCV $). Pega TODO el archivo y pulsa **Run**. Carga el esquema, los pedidos 1 a 4, las ventas, los cobros y todas las migraciones (v3 a v27) en el orden correcto.
 3. **Authentication > Users > Add user > Create new user**: crea los usuarios de Juan, George y Rosanny con los mismos correos de la tabla `socios` (marca *Auto Confirm User*).
 4. **Authentication > Sign In / Providers**: desactiva *Allow new users to sign up*.
 5. **Project Settings > API**: copia el **Project URL** y la clave **anon public** (se usan al publicar).
@@ -112,6 +112,13 @@ En **Catálogo** hay una sección «Catálogo en PDF»: genera un PDF con portad
 - **Vercel** (gratis): importa el repositorio y agrega las mismas variables (`VITE_MODO`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_URL_TIENDA`, `VITE_URL_VENDEDORAS`). `vercel.json` ya trae las rutas y `api/ficha.js` la vista previa del link `/p/ID`. Un proyecto por sitio (control, tienda, vendedoras), todos del mismo repositorio.
 - **Cloudflare Pages** (gratis): build `npm run build`, carpeta `dist`, mismas variables. Funciona la tienda y los links `?p=ID`; la vista previa bonita de `/p/ID` en WhatsApp solo existe en Netlify y Vercel.
 - Las migraciones v11 a v18 también vienen juntas en `supabase/entrega_v11_a_v25.sql`.
+
+## Novedades v27 · Rebranding MOTOSA de la tienda
+- **Ejecuta `supabase/migracion_v27.sql`** en el SQL Editor (después de la v26). Agrega familia olfativa, ocasión, duración y "nuevo" a los perfumes, el enlace de Instagram y de las cajas, la tabla de clientes felices, y carga una propuesta de familia/ocasión/duración/notas (solo a perfumes que no las tengan; corrígelas en Perfumes → Editar).
+- **Tienda**: marca MOTOSA (verde bosque, café y dorado; Cinzel + Montserrat), filtros por familia, ocasión y precio, favoritos, quiz de 3 preguntas, ficha con notas por niveles y "mira también", barra de progreso al precio al mayor, Instagram con 5% para nuevos clientes, banner de cajas al mayor y clientes felices.
+- **Panel → Tienda online**: nueva pestaña **Vista del catálogo** (arrastra los perfumes en una cuadrícula de fotos pequeñas) y **Clientes felices** (sube fotos con nombre y perfume). En **Ajustes de la tienda** están los enlaces de Instagram y de las cajas.
+- El orden de la tienda ya no está en Inventario: se cambia en Tienda online → Vista del catálogo.
+- Logo y patrón de marca en `public/marca/`.
 
 ## Novedades v25
 - Clientes: botón **➕ Agregar un perfume a esta cuenta** dentro del historial de cada cliente (junto al ✏️ editar y 🗑️ borrar que ya existían).

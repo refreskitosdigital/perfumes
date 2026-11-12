@@ -5,6 +5,7 @@ import { useApp } from '../App.jsx'
 import { Seccion, Campo, Aviso, Guia, Insignia, Tarjeta } from '../ui.jsx'
 import { usd, num, waLink } from '../lib.js'
 import { reducirImagen } from '../imagen.js'
+import OrdenTienda from './OrdenTienda.jsx'
 
 const fechaHora = (t) => new Date(t).toLocaleString('es-VE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Caracas' })
 
@@ -12,6 +13,7 @@ export default function TiendaOnline() {
   const [vista, setVista] = useState('pedidos')
   const ped = useQuery(() => supabase.from('pedidos_web').select('*').order('creado', { ascending: false }).limit(300), [])
   const dem = useQuery(() => supabase.from('demanda_web').select('*').order('creado', { ascending: false }), [])
+  const inv = useQuery(() => supabase.from('inventario_v').select('id,stock'), [])
   const nuevos = ped.data.filter((p) => p.estado === 'nuevo').length
   const porAtender = new Set(dem.data.filter((d) => !d.atendido).map((d) => d.perfume_id)).size
   const enlace = (import.meta.env.VITE_URL_TIENDA || '').replace(/\/+$/, '') || `${window.location.origin}/tienda`
@@ -24,12 +26,16 @@ export default function TiendaOnline() {
       <div className="subtabs">
         <button className={vista === 'pedidos' ? 'on' : ''} onClick={() => setVista('pedidos')}>Pedidos {nuevos > 0 && <Insignia tono="warn">{nuevos} nuevos</Insignia>}</button>
         <button className={vista === 'demanda' ? 'on' : ''} onClick={() => setVista('demanda')}>Agendados (agotados) {porAtender > 0 && <Insignia>{porAtender}</Insignia>}</button>
+        <button className={vista === 'catalogo' ? 'on' : ''} onClick={() => setVista('catalogo')}>Vista del catálogo</button>
+        <button className={vista === 'felices' ? 'on' : ''} onClick={() => setVista('felices')}>Clientes felices</button>
         <button className={vista === 'banners' ? 'on' : ''} onClick={() => setVista('banners')}>Banners</button>
         <button className={vista === 'ajustes' ? 'on' : ''} onClick={() => setVista('ajustes')}>Ajustes de la tienda</button>
       </div>
       <Aviso error={ped.error || dem.error} />
       {vista === 'pedidos' && <Pedidos ped={ped} />}
       {vista === 'demanda' && <Demanda dem={dem} />}
+      {vista === 'catalogo' && <OrdenTienda stock={Object.fromEntries(inv.data.map((r) => [r.id, r.stock]))} />}
+      {vista === 'felices' && <Felices />}
       {vista === 'banners' && <Banners />}
       {vista === 'ajustes' && <Ajustes />}
     </>
@@ -173,7 +179,7 @@ function Ajustes() {
     const tel = String(f.whatsapp || '').replace(/\D/g, '')
     const { error } = await supabase.from('tienda_config').update({
       nombre: f.nombre.trim() || 'Perfumes', whatsapp: tel || null, umbral_mayor: Math.max(1, Math.round(num(f.umbral_mayor))),
-      mensaje: f.mensaje, metodos: f.metodos.filter((m) => m.titulo.trim()),
+      mensaje: f.mensaje, instagram_url: (f.instagram_url || '').trim() || null, cajas_url: (f.cajas_url || '').trim() || null, metodos: f.metodos.filter((m) => m.titulo.trim()),
     }).eq('id', 1)
     setMsg(error ? { error: error.message, ok: '' } : { error: '', ok: 'Ajustes guardados. La tienda ya los muestra.' })
   }
@@ -187,6 +193,10 @@ function Ajustes() {
           <Campo label="Precio al mayor desde (perfumes)" ayuda="Se cuentan todos los del carrito, de cualquier tipo"><input type="number" min="1" value={f.umbral_mayor} onChange={(e) => setF({ ...f, umbral_mayor: e.target.value })} required /></Campo>
         </div>
         <div className="form"><Campo label="Frase bajo el título"><input value={f.mensaje || ''} onChange={(e) => setF({ ...f, mensaje: e.target.value })} /></Campo></div>
+        <div className="form">
+          <Campo label="Instagram de la tienda" ayuda="A donde lleva el botón “Síguenos en Instagram”"><input value={f.instagram_url || ''} onChange={(e) => setF({ ...f, instagram_url: e.target.value })} placeholder="https://www.instagram.com/motosaperfumes/" /></Campo>
+          <Campo label="Enlace de las cajas al mayor" ayuda="Si lo dejas vacío, el botón abre un WhatsApp preguntando por las cajas"><input value={f.cajas_url || ''} onChange={(e) => setF({ ...f, cajas_url: e.target.value })} placeholder="https://…" /></Campo>
+        </div>
         <h3>Métodos de pago</h3>
         <p className="ayuda">Los que escribas aquí se muestran en la tienda y el cliente elige uno al pedir. Puedes poner los datos del pago móvil, del Binance, etc.</p>
         {f.metodos.map((m, i) => (
@@ -255,6 +265,86 @@ function Banners() {
           </div>
         )
       })}
+    </Seccion>
+  )
+}
+
+function Felices() {
+  const fel = useQuery(() => supabase.from('tienda_felices').select('*').order('orden').order('id'), [])
+  const [subiendo, setSubiendo] = useState(false)
+  const [msg, setMsg] = useState({ error: '', ok: '' })
+  const [datos, setDatos] = useState({ nombre: '', perfume: '' })
+  const [arrastra, setArrastra] = useState(null)
+
+  const subir = async (archivo) => {
+    if (!archivo) return
+    setSubiendo(true); setMsg({ error: '', ok: '' })
+    try {
+      const blob = await reducirImagen(archivo, 1000, 0.85)
+      const ruta = `felices/cliente-${Date.now()}.jpg`
+      const up = await supabase.storage.from('perfumes').upload(ruta, blob, { contentType: 'image/jpeg', upsert: true })
+      if (up.error) throw up.error
+      const { data } = supabase.storage.from('perfumes').getPublicUrl(ruta)
+      const orden = fel.data.length ? Math.max(...fel.data.map((x) => x.orden || 0)) + 1 : 1
+      const { error } = await supabase.from('tienda_felices').insert({ url: data.publicUrl, nombre: datos.nombre.trim() || null, perfume: datos.perfume.trim() || null, orden })
+      if (error) throw (/tienda_felices/.test(error.message) ? new Error('Falta ejecutar migracion_v27.sql en Supabase.') : error)
+      setDatos({ nombre: '', perfume: '' })
+      setMsg({ error: '', ok: 'Foto agregada. Ya se ve en la tienda.' }); fel.recargar()
+    } catch (e) { setMsg({ error: e.message || String(e), ok: '' }) } finally { setSubiendo(false) }
+  }
+  const quitar = async (f) => {
+    if (!window.confirm('¿Quitar esta foto de la tienda?')) return
+    const { error } = await supabase.from('tienda_felices').delete().eq('id', f.id)
+    if (error) return setMsg({ error: error.message, ok: '' })
+    setMsg({ error: '', ok: 'Foto quitada.' }); fel.recargar()
+  }
+  const editar = async (f, campo, valor) => {
+    if ((f[campo] || '') === valor.trim()) return
+    const { error } = await supabase.from('tienda_felices').update({ [campo]: valor.trim() || null }).eq('id', f.id)
+    if (error) return setMsg({ error: error.message, ok: '' })
+    setMsg({ error: '', ok: 'Guardado.' }); fel.recargar()
+  }
+  const mover = async (desde, hasta) => {
+    if (hasta < 0 || hasta >= fel.data.length || desde === hasta) return
+    const n = [...fel.data]; const [x] = n.splice(desde, 1); n.splice(hasta, 0, x)
+    const res = await Promise.all(n.map((f, i) => supabase.from('tienda_felices').update({ orden: i + 1 }).eq('id', f.id)))
+    const err = res.find((r) => r.error)
+    if (err) return setMsg({ error: err.error.message, ok: '' })
+    fel.recargar()
+  }
+
+  return (
+    <Seccion titulo="Clientes felices" ayuda="Las fotos que subas aquí salen en la tienda, en la sección Clientes felices.">
+      <Guia>Antes de publicar la foto de un cliente, confirma que está de acuerdo. Escribe su nombre como quieres que salga (por ejemplo “María F.”) y el perfume que se llevó, y luego sube la foto. Sin fotos, esa sección no aparece en la tienda.</Guia>
+      <Aviso error={fel.error} />
+      <Aviso {...msg} />
+      <div className="form">
+        <Campo label="Nombre del cliente"><input value={datos.nombre} onChange={(e) => setDatos({ ...datos, nombre: e.target.value })} placeholder="María F." /></Campo>
+        <Campo label="Perfume que se llevó"><input value={datos.perfume} onChange={(e) => setDatos({ ...datos, perfume: e.target.value })} placeholder="Cloud" /></Campo>
+        <label className="boton-link" style={{ cursor: 'pointer', alignSelf: 'end' }}>
+          {subiendo ? 'Subiendo…' : '📷 Subir foto'}
+          <input type="file" accept="image/*" hidden disabled={subiendo} onChange={(e) => { subir(e.target.files?.[0]); e.target.value = '' }} />
+        </label>
+      </div>
+      {!fel.data.length && <p className="vacio">Todavía no hay fotos.</p>}
+      <div className="orden-grid" onDragOver={(e) => e.preventDefault()}>
+        {fel.data.map((f, i) => (
+          <div key={f.id} className={'orden-ficha' + (arrastra === i ? ' arrastrando' : '')} draggable
+            onDragStart={(e) => { setArrastra(i); e.dataTransfer.setData('text/plain', String(f.id)) }}
+            onDrop={(e) => { e.preventDefault(); if (arrastra != null) mover(arrastra, i); setArrastra(null) }}
+            onDragEnd={() => setArrastra(null)}>
+            <span className="orden-pos">{i + 1}</span>
+            <button className="orden-ojo" onClick={() => quitar(f)} aria-label="Quitar foto" title="Quitar de la tienda">✕</button>
+            <div className="orden-foto" style={{ height: 130 }}><img src={f.url} alt={f.nombre || 'Cliente'} draggable="false" /></div>
+            <input className="mini" defaultValue={f.nombre || ''} placeholder="Nombre" onBlur={(e) => editar(f, 'nombre', e.target.value)} aria-label="Nombre" />
+            <input className="mini" defaultValue={f.perfume || ''} placeholder="Perfume" onBlur={(e) => editar(f, 'perfume', e.target.value)} aria-label="Perfume" />
+            <span className="orden-mini">
+              <button onClick={() => mover(i, i - 1)} disabled={i === 0} aria-label="Antes">◀</button>
+              <button onClick={() => mover(i, i + 1)} disabled={i === fel.data.length - 1} aria-label="Después">▶</button>
+            </span>
+          </div>
+        ))}
+      </div>
     </Seccion>
   )
 }

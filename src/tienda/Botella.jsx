@@ -2,12 +2,12 @@ import React from 'react'
 
 // Colores por "familia olfativa". Se eligen por palabras del nombre y, si no hay pista, por el nombre mismo.
 export const TONOS = {
-  oliva:  { fondo: '#E9ECD6', liquido: '#5B6B2E' },
-  oro:    { fondo: '#F3EAD0', liquido: '#C29B3A' },
-  musgo:  { fondo: '#E3E6D3', liquido: '#3A4A1F' },
-  bronce: { fondo: '#EFE6D6', liquido: '#8A6A2A' },
-  salvia: { fondo: '#EAEEDF', liquido: '#8A9A5B' },
-  noche:  { fondo: '#E7E8DF', liquido: '#1C2311' },
+  oliva:  { fondo: '#EDE3CC', liquido: '#5C6B38' },
+  oro:    { fondo: '#F3E6C8', liquido: '#B69A74' },
+  musgo:  { fondo: '#E4E0CB', liquido: '#2F4A42' },
+  bronce: { fondo: '#EFE0C6', liquido: '#A55B23' },
+  salvia: { fondo: '#EEE6D2', liquido: '#868551' },
+  noche:  { fondo: '#E6DDCB', liquido: '#22180D' },
 }
 const CLAVES = [
   [/vainilla|vanilla|vanille|coco|candy|cloud|lace|blush|rose|rosa/i, 'salvia'],

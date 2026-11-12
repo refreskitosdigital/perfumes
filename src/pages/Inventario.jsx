@@ -6,7 +6,6 @@ import { useApp } from '../App.jsx'
 import { Seccion, Aviso, Guia, Insignia } from '../ui.jsx'
 import { usd, pct, precioSugerido, num, normNombre, hoy } from '../lib.js'
 import { crearListaPdf } from '../pdf.js'
-import OrdenTienda from './OrdenTienda.jsx'
 
 const fechaLarga = () => new Date().toLocaleDateString('es-VE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'America/Caracas' })
 
@@ -165,7 +164,7 @@ export default function Inventario() {
       <Guia>Aquí ves qué perfumes tienes y a cuánto los vendes. Toca <b>✏️ Editar</b> en cualquier perfume para corregir lo que te costó (por ejemplo, si te hicieron una rebaja), <b>subir su foto</b> para la tienda online y cambiar sus precios. Abajo puedes descargar las <b>listas en PDF para tus clientes</b>: solo salen los perfumes que hay en stock, con su nombre y precio.</Guia>
       <Aviso {...msg} error={msg.error || inv.error || compras.error} />
 
-      <OrdenTienda stock={Object.fromEntries(inv.data.map((r) => [r.id, r.stock]))} />
+      <p className="ayuda">El orden en que salen los perfumes en la tienda ahora se cambia en <b>Tienda online → Vista del catálogo</b>.</p>
 
       <Seccion titulo="Listas para tus clientes (PDF)" ayuda="No incluyen costos, ganancias ni cantidades: solo el nombre y el precio de lo que tienes disponible.">
         <div className="atajos">

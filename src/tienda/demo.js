@@ -31,6 +31,8 @@ const info = {
     { titulo: 'Efectivo en dólares', detalle: 'Al momento de la entrega.' },
     { titulo: 'Binance (USDT)', detalle: 'Te enviamos el ID por WhatsApp al confirmar.' },
   ],
+  instagram_url: 'https://www.instagram.com/motosaperfumes/?hl=es', cajas_url: null,
+  felices: [{ url: 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 500"><rect width="400" height="500" fill="#182C29"/><circle cx="200" cy="190" r="70" fill="#B69A74"/><rect x="110" y="290" width="180" height="210" rx="70" fill="#B69A74"/></svg>'), nombre: 'María F.', perfume: 'Cloud' }],
   banners: [
     svgBanner('#1c2311', '#c8a14a', 'Promoción del mes', 'Perfumes árabes y de diseñador, al detal y al mayor', 'OCTUBRE'),
     svgBanner('#2c3818', '#8a9a3b', 'Con 12 perfumes, precio al mayor', 'Pueden ser 12 diferentes y todo pasa a precio mayor', 'AL MAYOR'),
@@ -41,7 +43,9 @@ const info = {
 
 const MARCA = [['Carolina Herrera', 'mujer'], ['Paco Rabanne', 'hombre'], ['Lattafa', 'unisex'], ['Britney Spears', 'mujer'], ['Le Labo', 'unisex'], ['Ariana Grande', 'mujer'], ['Lattafa', 'hombre'], ['Bharara', 'mujer'], ['Paco Rabanne', 'hombre'], ['Lattafa', 'mujer'], ['Perry Ellis', 'hombre'], ['Valentino', 'mujer'], ['Afnan', 'mujer']]
 const NOTAS = { 'Ariana Grande Cloud': 'Salida: pera y bergamota · Corazón: coco · Fondo: praliné y vainilla', 'Santal 33': 'Sándalo, cuero, cardamomo y cedro' }
-perfumes.forEach((p, k) => { const m = MARCA[k]; if (m) { p.marca = m[0]; p.genero = m[1] } p.notas = NOTAS[p.nombre] || null })
+const PERFIL = { 'Ariana Grande Cloud': ['Dulce', 'Día a día, Salidas', '5 a 7 horas'], 'Yara Candy Lattafa': ['Dulce', 'Salidas, Citas', '5 a 7 horas'], 'Carolina Herrera Good Girl': ['Floral', 'Noche, Citas', '7 a 9 horas'], 'Lattafa Khamrah Qahwa': ['Gourmand', 'Noche', '8 a 10 horas'], 'One Million Paco Rabanne': ['Ámbar y especiado', 'Salidas, Noche', '6 a 8 horas'], 'Asad Lattafa': ['Ámbar y especiado', 'Noche, Día a día', '7 a 9 horas'], 'Santal 33': ['Amaderado', 'Día a día', '6 a 8 horas'], 'Fantasy': ['Dulce', 'Día a día, Salidas', '4 a 6 horas'], 'Ariana Grande Mod Blush': ['Floral', 'Día a día', '4 a 6 horas'], 'Invictus Parfum Paco Rabanne': ['Fresco', 'Día a día, Salidas', '5 a 7 horas'] }
+NOTAS['Carolina Herrera Good Girl'] = 'Salida: almendra, café · Corazón: jazmín, tuberosa · Fondo: cacao, haba tonka, vainilla'
+perfumes.forEach((p, k) => { const m = MARCA[k]; if (m) { p.marca = m[0]; p.genero = m[1] } p.notas = NOTAS[p.nombre] || null; const f = PERFIL[p.nombre]; p.familia = f ? f[0] : null; p.ocasion = f ? f[1] : null; p.duracion = f ? f[2] : null; p.es_nuevo = ['Lattafa Khamrah Qahwa', 'Yara Candy Lattafa', 'Bharara Rose'].includes(p.nombre) })
 let cat = perfumes.map((p) => ({ ...p }))
 let n = 0
 const ok = (data) => Promise.resolve({ data, error: null })

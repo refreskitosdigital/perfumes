@@ -6,7 +6,31 @@ import { Seccion, Campo, Aviso, Guia, Insignia } from '../ui.jsx'
 import { usd, num, pct } from '../lib.js'
 import { reducirImagen } from '../imagen.js'
 
-const vacioNuevo = { nombre: '', marca: '', genero: '', notas: '', tips_venta: '', descripcion: '', precio_detal: '', precio_mayor: '', precio_consigna: '', existencia_manual: '' }
+const FAMILIAS = ['Dulce', 'Floral', 'Fresco', 'Amaderado', 'Ámbar y especiado', 'Gourmand']
+const OCASIONES = ['Día a día', 'Salidas', 'Citas', 'Noche']
+const vacioNuevo = { nombre: '', marca: '', genero: '', notas: '', familia: '', ocasion: '', duracion: '', es_nuevo: false, tips_venta: '', descripcion: '', precio_detal: '', precio_mayor: '', precio_consigna: '', existencia_manual: '' }
+
+// Perfil olfativo: alimenta los filtros, el quiz y las etiquetas de la tienda
+function PerfilOlfativo({ v, set }) {
+  const marcadas = String(v.ocasion || '').split(',').map((x) => x.trim()).filter(Boolean)
+  const alternar = (o) => set({ ...v, ocasion: (marcadas.includes(o) ? marcadas.filter((x) => x !== o) : [...marcadas, o]).join(', ') })
+  return (
+    <>
+      <div className="form">
+        <Campo label="Familia olfativa" ayuda="Se usa en los filtros y en el quiz de la tienda">
+          <select value={v.familia || ''} onChange={(e) => set({ ...v, familia: e.target.value })}>
+            <option value="">Sin definir</option>{FAMILIAS.map((f) => <option key={f}>{f}</option>)}
+          </select>
+        </Campo>
+        <Campo label="Duración en la piel"><input value={v.duracion || ''} onChange={(e) => set({ ...v, duracion: e.target.value })} placeholder="Ej.: 5 a 7 horas" /></Campo>
+      </div>
+      <Campo label="Ocasiones">
+        <div className="atajos">{OCASIONES.map((o) => <label key={o} className="check"><input type="checkbox" checked={marcadas.includes(o)} onChange={() => alternar(o)} /> {o}</label>)}</div>
+      </Campo>
+      <label className="check"><input type="checkbox" checked={!!v.es_nuevo} onChange={(e) => set({ ...v, es_nuevo: e.target.checked })} /> Mostrar en “Llegó mercancía nueva” (etiqueta Nuevo)</label>
+    </>
+  )
+}
 const aNum = (v) => (v === '' || v == null ? null : num(v))
 const aTexto = (v) => (v == null ? '' : String(v))
 
@@ -54,7 +78,7 @@ export default function Catalogo() {
     if (abierto === p.id) return setAbierto(null)
     setAbierto(p.id); setMsg({ error: '', ok: '' })
     setForm({
-      nombre: p.nombre, marca: aTexto(p.marca), genero: p.genero || '', notas: aTexto(p.notas), tips_venta: aTexto(p.tips_venta), descripcion: aTexto(p.descripcion), precio_detal: aTexto(p.precio_detal), precio_mayor: aTexto(p.precio_mayor),
+      nombre: p.nombre, marca: aTexto(p.marca), genero: p.genero || '', notas: aTexto(p.notas), familia: aTexto(p.familia), ocasion: aTexto(p.ocasion), duracion: aTexto(p.duracion), es_nuevo: !!p.es_nuevo, tips_venta: aTexto(p.tips_venta), descripcion: aTexto(p.descripcion), precio_detal: aTexto(p.precio_detal), precio_mayor: aTexto(p.precio_mayor),
       precio_consigna: aTexto(p.precio_consigna), existencia_manual: aTexto(p.existencia_manual),
       visible_tienda: p.visible_tienda, visible_vendedoras: p.visible_vendedoras,
     })
@@ -67,12 +91,12 @@ export default function Catalogo() {
     if (av.length && !window.confirm('Los precios no cuadran:\n\n• ' + av.join('\n• ') + '\n\n¿Guardar igual?')) return
     const { error } = await supabase.from('perfumes').update({
       nombre: form.nombre.trim(), descripcion: form.descripcion.trim() || null,
-      marca: form.marca.trim() || null, genero: form.genero || null, notas: form.notas.trim() || null, tips_venta: form.tips_venta.trim() || null,
+      marca: form.marca.trim() || null, genero: form.genero || null, notas: form.notas.trim() || null, familia: form.familia || null, ocasion: form.ocasion.trim() || null, duracion: form.duracion.trim() || null, es_nuevo: !!form.es_nuevo, tips_venta: form.tips_venta.trim() || null,
       precio_detal: pr.detal, precio_mayor: pr.mayor, precio_consigna: pr.consigna,
       existencia_manual: enInventario(p) ? p.existencia_manual : (aNum(form.existencia_manual) == null ? null : Math.round(aNum(form.existencia_manual))),
       visible_tienda: form.visible_tienda, visible_vendedoras: form.visible_vendedoras,
     }).eq('id', p.id)
-    if (error) return fallo(/existencia_manual|descripcion|precio_consigna|visible_vendedoras/.test(error.message) ? new Error('Falta ejecutar migracion_v9.sql en Supabase.') : /marca|genero|notas|tips_venta/.test(error.message) ? new Error('Falta ejecutar migracion_v10.sql en Supabase.') : error)
+    if (error) return fallo(/existencia_manual|descripcion|precio_consigna|visible_vendedoras/.test(error.message) ? new Error('Falta ejecutar migracion_v9.sql en Supabase.') : /familia|ocasion|duracion|es_nuevo/.test(error.message) ? new Error('Falta ejecutar migracion_v27.sql en Supabase.') : /marca|genero|notas|tips_venta/.test(error.message) ? new Error('Falta ejecutar migracion_v10.sql en Supabase.') : error)
     ok('Perfume guardado. Ya se actualizó en la tienda y para las vendedoras.'); recargar()
   }
 
@@ -102,11 +126,11 @@ export default function Catalogo() {
     if (av.length && !window.confirm('Los precios no cuadran:\n\n• ' + av.join('\n• ') + '\n\n¿Guardar igual?')) return
     const { data, error } = await supabase.from('perfumes').insert({
       nombre: nuevo.nombre.trim(), descripcion: nuevo.descripcion.trim() || null,
-      marca: nuevo.marca.trim() || null, genero: nuevo.genero || null, notas: nuevo.notas.trim() || null, tips_venta: nuevo.tips_venta.trim() || null,
+      marca: nuevo.marca.trim() || null, genero: nuevo.genero || null, notas: nuevo.notas.trim() || null, familia: nuevo.familia || null, ocasion: nuevo.ocasion.trim() || null, duracion: nuevo.duracion.trim() || null, es_nuevo: !!nuevo.es_nuevo, tips_venta: nuevo.tips_venta.trim() || null,
       precio_detal: pr.detal, precio_mayor: pr.mayor, precio_consigna: pr.consigna,
       existencia_manual: aNum(nuevo.existencia_manual) == null ? 0 : Math.round(aNum(nuevo.existencia_manual)),
     }).select('id').single()
-    if (error) return fallo(/perfumes_nombre_uq|duplicate/.test(error.message) ? new Error('Ya existe un perfume con ese nombre.') : /existencia_manual|descripcion|precio_consigna/.test(error.message) ? new Error('Falta ejecutar migracion_v9.sql en Supabase.') : /marca|genero|notas|tips_venta/.test(error.message) ? new Error('Falta ejecutar migracion_v10.sql en Supabase.') : error)
+    if (error) return fallo(/perfumes_nombre_uq|duplicate/.test(error.message) ? new Error('Ya existe un perfume con ese nombre.') : /existencia_manual|descripcion|precio_consigna/.test(error.message) ? new Error('Falta ejecutar migracion_v9.sql en Supabase.') : /familia|ocasion|duracion|es_nuevo/.test(error.message) ? new Error('Falta ejecutar migracion_v27.sql en Supabase.') : /marca|genero|notas|tips_venta/.test(error.message) ? new Error('Falta ejecutar migracion_v10.sql en Supabase.') : error)
     ok(`"${nuevo.nombre.trim()}" agregado al catálogo. Sube sus fotos abriéndolo abajo.`)
     setNuevo(null); recargar()
     if (data?.id) setTimeout(() => { setAbierto(null) }, 0)
@@ -170,6 +194,7 @@ export default function Catalogo() {
             </div>
             <Campo label="Descripción (se ve en la tienda y en el link de vendedoras)"><textarea rows="3" value={nuevo.descripcion} onChange={(e) => setNuevo({ ...nuevo, descripcion: e.target.value })} placeholder="Para quién es, cuándo usarlo, duración…" /></Campo>
             <Campo label="Notas y tonos (tienda y vendedoras)"><input value={nuevo.notas} onChange={(e) => setNuevo({ ...nuevo, notas: e.target.value })} placeholder="Salida: bergamota · Corazón: rosa · Fondo: ámbar" /></Campo>
+            <PerfilOlfativo v={nuevo} set={setNuevo} />
             <Campo label="Tips para vender (solo las vendedoras lo ven)"><textarea rows="2" value={nuevo.tips_venta} onChange={(e) => setNuevo({ ...nuevo, tips_venta: e.target.value })} placeholder="Ej.: ideal para regalo; huele parecido a …" /></Campo>
             <button className="primario" type="submit">Agregar al catálogo</button>
           </form>
@@ -241,6 +266,7 @@ export default function Catalogo() {
                       <textarea rows="4" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} placeholder="Para quién es, cuándo usarlo, duración…" />
                     </Campo>
                     <Campo label="Notas y tonos (tienda y vendedoras)"><input value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} placeholder="Salida: bergamota · Corazón: rosa · Fondo: ámbar" /></Campo>
+                    <PerfilOlfativo v={form} set={setForm} />
                     <Campo label="Tips para vender (solo las vendedoras lo ven)"><textarea rows="2" value={form.tips_venta} onChange={(e) => setForm({ ...form, tips_venta: e.target.value })} placeholder="Ej.: ideal para regalo; huele parecido a …" /></Campo>
                     <div className="form">
                       <Campo label="🛒 Precio tienda $" ayuda={costo > 0 && form.precio_detal ? `Ganas ${pct((num(form.precio_detal) - costo) / costo)} sobre el costo` : 'Lo que paga el público'}>

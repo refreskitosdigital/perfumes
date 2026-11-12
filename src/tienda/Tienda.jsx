@@ -5,6 +5,21 @@ import Botella, { tonoDe } from './Botella.jsx'
 import './tienda.css'
 
 const WHATSAPP_POR_DEFECTO = '584241735215'
+const INSTAGRAM_POR_DEFECTO = 'https://www.instagram.com/motosaperfumes/?hl=es'
+const FAMILIAS = [
+  ['Dulce', 'Vainilla, frutas y caramelo'], ['Floral', 'Rosa, jazmín y peonía'], ['Fresco', 'Cítricos y notas marinas'],
+  ['Amaderado', 'Sándalo, cedro y cuero'], ['Ámbar y especiado', 'Cálido, con canela y pimienta'], ['Gourmand', 'Café, cacao y praliné'],
+]
+const OCASIONES = ['Día a día', 'Salidas', 'Citas', 'Noche']
+const RANGOS = [['', 'Cualquier precio'], ['a', 'Hasta $30'], ['b', '$31 a $36'], ['c', 'Más de $36']]
+const enRango = (r, v) => !r || (v != null && (r === 'a' ? v <= 30 : r === 'b' ? v > 30 && v <= 36 : v > 36))
+const tieneOcasion = (p, o) => String(p.ocasion || '').split(',').map((x) => x.trim()).includes(o)
+// Notas: si vienen como "Salida: … · Corazón: … · Fondo: …" se muestran por niveles; si no, como texto
+const parseNotas = (t) => {
+  if (!t) return null
+  const partes = t.split(/\s*[·|]\s*/).map((x) => x.match(/^(salida|coraz[oó]n|fondo)\s*:\s*(.+)$/i)).filter(Boolean)
+  return partes.length >= 2 ? partes.map((m) => [m[1][0].toUpperCase() + m[1].slice(1).toLowerCase(), m[2]]) : null
+}
 const $ = (v) => '$' + (Number.isInteger(num(v)) ? String(num(v)) : num(v).toFixed(2).replace('.', ','))
 const Bs = (v, tasa) => 'Bs ' + Math.round(num(v) * num(tasa)).toLocaleString('es-VE')
 const digitos = (s) => String(s || '').replace(/\D/g, '')
@@ -35,6 +50,12 @@ export default function Tienda() {
   const [listo, setListo] = useState(null)
   const [aviso, setAviso] = useState('')
   const [top, setTop] = useState(0)
+  const [familia, setFamilia] = useState('')
+  const [ocasion, setOcasion] = useState('')
+  const [rango, setRango] = useState('')
+  const [soloFavs, setSoloFavs] = useState(false)
+  const [favs, setFavs] = useState(() => guardado('tienda-favs', []))
+  const [quiz, setQuiz] = useState(false)
 
   const cargar = async () => {
     const [c, i] = await Promise.all([rpc('tienda_catalogo'), rpc('tienda_info')])
@@ -51,6 +72,9 @@ export default function Tienda() {
   }, [])
   useEffect(() => { if (info?.nombre) document.title = info.nombre + ' · Perfumes' }, [info])
   useEffect(() => { guardar('tienda-carro', carro) }, [carro])
+  useEffect(() => { guardar('tienda-favs', favs) }, [favs])
+  const alternarFav = (id) => setFavs((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]))
+  const verFamilia = (f) => { setFamilia(f); setTab('detal'); setTimeout(() => document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth' }), 50) }
   useEffect(() => { if (!aviso) return; const t = setTimeout(() => setAviso(''), 3500); return () => clearTimeout(t) }, [aviso])
 
   const umbral = info?.umbral_mayor || 12
@@ -86,10 +110,15 @@ export default function Tienda() {
   })
 
   const visibles = useMemo(() => (cat || [])
-    .filter((p) => (!q || normNombre(p.nombre + ' ' + (p.marca || '')).includes(normNombre(q))) && (genero === 'todos' || p.genero === genero) && (!marca || p.marca === marca) && (solo === 'todos' || (solo === 'disp' ? p.stock > 0 && p.precio_detal != null : p.stock === 0 || p.precio_detal == null)))
-    , [cat, q, solo, genero, marca])
+    .filter((p) => (!q || normNombre(p.nombre + ' ' + (p.marca || '')).includes(normNombre(q))) && (genero === 'todos' || p.genero === genero) && (!marca || p.marca === marca) && (!familia || p.familia === familia) && (!ocasion || tieneOcasion(p, ocasion)) && enRango(rango, p.precio_detal == null ? null : num(p.precio_detal)) && (!soloFavs || favs.includes(p.id)) && (solo === 'todos' || (solo === 'disp' ? p.stock > 0 && p.precio_detal != null : p.stock === 0 || p.precio_detal == null)))
+    , [cat, q, solo, genero, marca, familia, ocasion, rango, soloFavs, favs])
   const marcas = useMemo(() => [...new Set((cat || []).map((p) => p.marca).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')), [cat])
   const hayGenero = (cat || []).some((p) => p.genero)
+  const hayPerfil = (cat || []).some((p) => p.familia)
+  const nuevos = useMemo(() => (cat || []).filter((p) => p.es_nuevo && p.stock > 0 && p.precio_detal != null).slice(0, 8), [cat])
+  const masVendidos = useMemo(() => new Set((cat || []).filter((p) => p.vendidos > 0 && p.stock > 0).sort((a, b) => b.vendidos - a.vendidos).slice(0, 3).map((p) => p.id)), [cat])
+  const hayFiltros = genero !== 'todos' || marca || familia || ocasion || rango || soloFavs
+  const limpiarFiltros = () => { setGenero('todos'); setMarca(''); setFamilia(''); setOcasion(''); setRango(''); setSoloFavs(false) }
   const nDisp = (cat || []).filter((p) => p.stock > 0 && p.precio_detal != null).length
 
   // Top perfumes: los más vendidos que todavía tienen stock
@@ -117,9 +146,10 @@ export default function Tienda() {
 
       <header className="t-top">
         <div className="t-ancho t-top-fila">
-          <a className="t-nombre" href="#inicio">{info.nombre}</a>
+          <a className="t-marca" href="#inicio" aria-label={info.nombre}><img src="/marca/logo-oro.png" alt={info.nombre} /></a>
           <nav className="t-nav" aria-label="Secciones">
             <a href="#catalogo">Perfumes</a>
+            <button type="button" className="t-nav-btn" onClick={() => setQuiz(true)}>Encuentra tu perfume</button>
             <a href="#mayor">Al mayor</a>
             <a href="#pagos">Cómo pagar</a>
           </nav>
@@ -130,7 +160,7 @@ export default function Tienda() {
         </div>
       </header>
 
-      <Hero info={info} />
+      <Hero info={info} onQuiz={() => setQuiz(true)} />
 
       <section className="t-confianza" aria-label="Cómo comprar">
         <div className="t-ancho t-confianza-fila">
@@ -140,6 +170,42 @@ export default function Tienda() {
           <div><Icono d={<><rect x="4" y="5" width="16" height="15" rx="1" /><path d="M4 10h16M9 3v4M15 3v4" /></>} /><span><b>Agenda el que quieras</b>Te avisamos cuando llegue</span></div>
         </div>
       </section>
+
+      <section className="t-quiz-banner">
+        <div className="t-ancho t-quiz-fila">
+          <div><h2>¿No sabes cuál elegir?</h2><p>Responde 3 preguntas y te recomendamos 3 perfumes.</p></div>
+          <button type="button" className="t-btn dorado" onClick={() => setQuiz(true)}>Empezar el quiz</button>
+        </div>
+      </section>
+
+      {hayPerfil && (
+        <section className="t-familias" aria-labelledby="t-fam-h">
+          <div className="t-ancho">
+            <h2 id="t-fam-h">Elige por familia olfativa</h2>
+            <div className="t-fam-grid">
+              {FAMILIAS.map(([f, d]) => (
+                <button type="button" key={f} className="t-fam" onClick={() => verFamilia(f)}><b>{f}</b><small>{d}</small></button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {nuevos.length > 0 && (
+        <section className="t-nuevos" aria-labelledby="t-nue-h">
+          <div className="t-ancho">
+            <h2 id="t-nue-h">Llegó mercancía nueva</h2>
+            <div className="t-nue-fila">
+              {nuevos.map((p) => (
+                <button type="button" key={p.id} className="t-nue" onClick={() => abrirFicha(p)}>
+                  <span className="t-nue-foto" style={{ background: tonoDe(p.nombre).fondo }}>{p.foto_url ? <img src={p.foto_url} alt="" loading="lazy" /> : <Botella nombre={p.nombre} tono={tonoDe(p.nombre)} />}</span>
+                  <small>{p.marca}</small><b>{p.nombre}</b>
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="t-catalogo" id="catalogo">
         <div className="t-ancho">
@@ -180,9 +246,34 @@ export default function Tienda() {
                   </select>
                 </label>
               )}
-              {(genero !== 'todos' || marca) && <button className="t-limpiar" onClick={() => { setGenero('todos'); setMarca('') }}>Quitar filtros</button>}
+              {hayFiltros && <button className="t-limpiar" onClick={limpiarFiltros}>Quitar filtros</button>}
             </div>
           )}
+          {(hayPerfil || favs.length > 0) && (
+            <div className="t-controles t-controles2">
+              {hayPerfil && (
+                <div className="t-filtros" role="group" aria-label="Familia olfativa">
+                  {['', ...FAMILIAS.map((f) => f[0])].map((f) => (
+                    <button key={f || 'todas'} className={familia === f ? 'on' : ''} aria-pressed={familia === f} onClick={() => setFamilia(f)}>{f || 'Todas las familias'}</button>
+                  ))}
+                </div>
+              )}
+              {hayPerfil && (
+                <label className="t-marca-sel"><span>Ocasión</span>
+                  <select value={ocasion} onChange={(e) => setOcasion(e.target.value)} aria-label="Filtrar por ocasión">
+                    <option value="">Cualquiera</option>{OCASIONES.map((o) => <option key={o}>{o}</option>)}
+                  </select>
+                </label>
+              )}
+              <label className="t-marca-sel"><span>Precio</span>
+                <select value={rango} onChange={(e) => setRango(e.target.value)} aria-label="Filtrar por precio">
+                  {RANGOS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}
+                </select>
+              </label>
+              <button type="button" className={'t-fav-filtro' + (soloFavs ? ' on' : '')} aria-pressed={soloFavs} onClick={() => setSoloFavs(!soloFavs)}>♥ Favoritos ({favs.length})</button>
+            </div>
+          )}
+          <p className="t-conteo" role="status">{visibles.length} {visibles.length === 1 ? 'perfume' : 'perfumes'}</p>
 
           {tab === 'mayor' && (
             <aside className="t-mayor-info">
@@ -192,7 +283,7 @@ export default function Tienda() {
 
           <div className="t-grid">
             {!visibles.length && <p className="t-vacio">No encontramos perfumes con esos filtros.</p>}
-            {visibles.map((p) => <Ficha key={p.id} {...{ p, tab, umbral, tasa, carro, cambiar, setAgendar, abrirFicha }} />)}
+            {visibles.map((p) => <Ficha key={p.id} {...{ p, tab, umbral, tasa, carro, cambiar, setAgendar, abrirFicha, fav: favs.includes(p.id), alternarFav, top: masVendidos.has(p.id) }} />)}
           </div>
         </div>
       </section>
@@ -277,10 +368,44 @@ export default function Tienda() {
         </div>
       </section>
 
+      {info.felices?.length > 0 && (
+        <section className="t-felices" aria-labelledby="t-fel-h">
+          <div className="t-ancho">
+            <h2 id="t-fel-h">Clientes felices</h2>
+            <div className="t-fel-fila">
+              {info.felices.map((f, i) => (
+                <figure key={i} className="t-fel"><img src={f.url} alt={f.nombre ? `${f.nombre} con su perfume` : 'Cliente feliz'} loading="lazy" />
+                  {(f.nombre || f.perfume) && <figcaption><b>{f.nombre}</b>{f.perfume && <small>Se llevó {f.perfume}</small>}</figcaption>}
+                </figure>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="t-ig">
+        <div className="t-ancho">
+          <div className="t-ig-caja">
+            <div>
+              <h2>Síguenos en Instagram y obtén 5% de descuento</h2>
+              <p>Síguenos en Instagram, enviamos el capture y obtén un 5% de descuento en tu pedido.</p>
+              <small>Válido solo para nuevos clientes.</small>
+            </div>
+            <a className="t-btn bosque" href={info.instagram_url || INSTAGRAM_POR_DEFECTO} target="_blank" rel="noopener noreferrer">
+              <Icono d={<><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.2" cy="6.8" r=".8" fill="currentColor" /></>} width="20" height="20" />Síguenos en Instagram
+            </a>
+          </div>
+          <a className="t-cajas" href={info.cajas_url || `https://wa.me/${digitos(info.whatsapp) || WHATSAPP_POR_DEFECTO}?text=${encodeURIComponent('Hola, quiero iniciar mi propio negocio de perfumes. ¿Me cuentas cómo funcionan las cajas al mayor?')}`} target="_blank" rel="noopener noreferrer">
+            <span><b>¿Quieres iniciar tu propio negocio de perfumes?</b><small>Compra cajas al mayor y revende con ganancia.</small></span>
+            <i>Ver cajas al mayor</i>
+          </a>
+        </div>
+      </section>
+
       <footer className="t-pie">
         <div className="t-ancho t-pie-fila">
-          <div><div className="t-nombre">{info.nombre}</div><p>Caracas, Venezuela</p></div>
-          <div className="t-pie-enlaces"><a href="#catalogo">Perfumes</a><a href="#mayor">Al mayor</a><a href="#pagos">Cómo pagar</a></div>
+          <div><img className="t-pie-logo" src="/marca/logo-oro.png" alt={info.nombre} /><p>Caracas, Venezuela</p></div>
+          <div className="t-pie-enlaces"><a href="#catalogo">Perfumes</a><a href="#mayor">Al mayor</a><a href="#pagos">Cómo pagar</a><a href={info.instagram_url || INSTAGRAM_POR_DEFECTO} target="_blank" rel="noopener noreferrer">Instagram</a></div>
           <div><b>WhatsApp</b><p>{formatoTel(info.whatsapp || WHATSAPP_POR_DEFECTO)}</p></div>
         </div>
         <div className="t-ancho t-pie-nota">Precios sujetos a cambio y a disponibilidad.{esDemo ? ' · Vista previa con datos de ejemplo.' : ''}</div>
@@ -288,12 +413,13 @@ export default function Tienda() {
 
       {unidades > 0 && !cajon && (
         <button className="t-barra-carro" onClick={() => setCajon(true)}>
-          <span>{unidades} {unidades === 1 ? 'perfume' : 'perfumes'}{mayor ? ' · precio al mayor' : ''}</span><b>Ver carrito · {$(total)}</b>
+          <span className="t-barra-txt"><span>{mayor ? 'Precio al mayor aplicado' : `${unidades} de ${umbral} para precio al mayor`}</span><span className="t-barra"><i style={{ width: Math.min(100, (unidades / umbral) * 100) + '%' }} /></span></span><b>Ver carrito · {$(total)}</b>
         </button>
       )}
 
       {cajon && <Cajon onCerrar={() => setCajon(false)} {...{ lineas, unidades, umbral, mayor, total, ahorro, tasa, info, precioDe, cambiar, setCarro, cargar, setListo }} />}
-      {ver && <Detalle p={cat.find((x) => x.id === ver.id) || ver} {...{ tasa, umbral, carro, cambiar, setAgendar, info, setAviso }} onCerrar={cerrarFicha} />}
+      {ver && <Detalle p={cat.find((x) => x.id === ver.id) || ver} {...{ cat, tasa, umbral, carro, cambiar, setAgendar, info, setAviso, abrirFicha, favs, alternarFav }} onCerrar={cerrarFicha} />}
+      {quiz && <Quiz cat={cat} tasa={tasa} umbral={umbral} onCerrar={() => setQuiz(false)} {...{ carro, cambiar, abrirFicha, setAviso }} />}
       {agendar && <Agendar p={agendar} onCerrar={() => setAgendar(null)} onListo={(m) => { setAgendar(null); setAviso(m) }} />}
       {listo && <Listo r={listo} info={info} onCerrar={() => setListo(null)} />}
       {aviso && <div className="t-toast" role="status">{aviso}</div>}
@@ -310,7 +436,7 @@ const formatoTel = (n) => {
 }
 
 // Carrusel de banners (hasta 4). Si todavía no hay banners subidos, muestra una portada con el nombre de la tienda.
-function Hero({ info }) {
+function Hero({ info, onQuiz }) {
   const banners = (info.banners || []).slice(0, 4)
   const n = Math.max(banners.length, 1)
   const [i, setI] = useState(0)
@@ -338,7 +464,14 @@ function Hero({ info }) {
             </div>
           )) : (
             <div className="t-slide portada">
-              <div><h1>{info.nombre}</h1><p>{info.mensaje}</p></div>
+              <div>
+                <h1>Perfumes de diseñador y árabes, <i>para tu estilo</i></h1>
+                <p>{info.mensaje || 'Calidad 1.1, envíos a todo el país y pedido por WhatsApp en minutos.'}</p>
+                <div className="t-hero-cta">
+                  <a className="t-btn dorado" href="#catalogo">Ver el catálogo</a>
+                  <button type="button" className="t-btn claro" onClick={onQuiz}>Encuentra tu perfume</button>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -358,7 +491,7 @@ function Hero({ info }) {
   )
 }
 
-function Ficha({ p, tab, umbral, tasa, carro, cambiar, setAgendar, abrirFicha }) {
+function Ficha({ p, tab, umbral, tasa, carro, cambiar, setAgendar, abrirFicha, fav, alternarFav, top }) {
   const sinPrecio = p.precio_detal == null
   const sinStock = p.stock < 1
   const agendable = sinStock || sinPrecio     // no se puede comprar ahora: se agenda y le avisamos
@@ -376,10 +509,13 @@ function Ficha({ p, tab, umbral, tasa, carro, cambiar, setAgendar, abrirFicha })
             ? <span className="t-sello poco">{p.stock === 1 ? 'Última unidad' : `Quedan ${p.stock}`}</span>
             : <span className="t-sello disp">Disponible</span>)}
         {p.foto2_url && <span className="t-dos" aria-hidden="true"><i /><i /></span>}
+        {(p.es_nuevo || top) && !sinStock && <span className="t-etq">{p.es_nuevo ? 'Nuevo' : 'Más vendido'}</span>}
+        <button type="button" className={'t-fav' + (fav ? ' on' : '')} aria-pressed={fav} aria-label={(fav ? 'Quitar de favoritos: ' : 'Guardar en favoritos: ') + p.nombre} onClick={(e) => { e.stopPropagation(); alternarFav(p.id) }}>{fav ? '♥' : '♡'}</button>
       </div>
       <div className="t-info">
         <h3><button type="button" className="t-nombre-btn" onClick={() => abrirFicha(p)}>{p.nombre}</button></h3>
         {(p.marca || p.genero) && <small className="t-meta">{[p.marca, GENERO[p.genero]].filter(Boolean).join(' · ')}</small>}
+        {p.familia && <small className="t-familia">{p.familia}</small>}
         {p.descripcion && <p className="t-desc" title={p.descripcion}>{p.descripcion}</p>}
         {sinPrecio ? (
           <div className="t-precio"><b className="t-por-confirmar">Precio por confirmar</b></div>
@@ -410,8 +546,11 @@ function Ficha({ p, tab, umbral, tasa, carro, cambiar, setAgendar, abrirFicha })
 }
 
 // Ficha completa de un perfume. Tiene link propio (/p/ID) y botón para compartirlo por WhatsApp.
-function Detalle({ p, tasa, umbral, carro, cambiar, setAgendar, info, setAviso, onCerrar }) {
+function Detalle({ p, cat, tasa, umbral, carro, cambiar, setAgendar, info, setAviso, abrirFicha, favs, alternarFav, onCerrar }) {
   const [foto, setFoto] = useState(0)
+  useEffect(() => { setFoto(0) }, [p.id])
+  const niveles = parseNotas(p.notas)
+  const similares = p.familia ? cat.filter((x) => x.id !== p.id && x.familia === p.familia && x.stock > 0 && x.precio_detal != null).slice(0, 3) : []
   const fotos = [p.foto_url, p.foto2_url].filter(Boolean)
   const sinPrecio = p.precio_detal == null
   const agendable = p.stock < 1 || sinPrecio
@@ -446,7 +585,16 @@ function Detalle({ p, tasa, umbral, carro, cambiar, setAgendar, info, setAviso, 
             </div>
           )}
           {p.descripcion && <p>{p.descripcion}</p>}
-          {p.notas && <p className="t-notas"><b>Notas:</b> {p.notas}</p>}
+          {niveles
+            ? <dl className="t-niveles">{niveles.map(([n, v]) => <div key={n}><dt>{n}</dt><dd>{v}</dd></div>)}</dl>
+            : p.notas && <p className="t-notas"><b>Notas:</b> {p.notas}</p>}
+          {(p.familia || p.duracion || p.ocasion) && (
+            <div className="t-perfil">
+              {p.familia && <span><small>Familia</small><b>{p.familia}</b></span>}
+              {p.ocasion && <span><small>Ocasión</small><b>{p.ocasion}</b></span>}
+              {p.duracion && <span><small>Duración</small><b>{p.duracion}</b></span>}
+            </div>
+          )}
           <p className="t-disp">{agendable ? (sinPrecio ? 'Agéndalo y te escribimos con el precio.' : 'Por llegar pronto: agéndalo y te avisamos apenas llegue.') : p.stock <= 2 ? (p.stock === 1 ? 'Última unidad' : `Quedan ${p.stock}`) : 'Disponible'}</p>
         </div>
         <div className="t-acciones col">
@@ -462,7 +610,19 @@ function Detalle({ p, tasa, umbral, carro, cambiar, setAgendar, info, setAviso, 
               : <button className="t-btn" onClick={() => { cambiar(p.id, 1); setAviso('Agregado: ' + p.nombre) }}>Agregar al carrito</button>}
           <a className="t-btn sec" href={`https://wa.me/?text=${encodeURIComponent(texto)}`} target="_blank" rel="noopener noreferrer">Compartir por WhatsApp</a>
           <button className="t-btn sec" onClick={copiar}>Copiar link</button>
+          <button className="t-btn sec" aria-pressed={favs.includes(p.id)} onClick={() => alternarFav(p.id)}>{favs.includes(p.id) ? '♥ En favoritos' : '♡ Guardar en favoritos'}</button>
         </div>
+        {similares.length > 0 && (
+          <div className="t-similares">
+            <h3>Si te gusta este, mira también</h3>
+            <div>{similares.map((x) => (
+              <button type="button" key={x.id} onClick={() => abrirFicha(x)}>
+                <span style={{ background: tonoDe(x.nombre).fondo }}>{x.foto_url ? <img src={x.foto_url} alt="" /> : <Botella nombre={x.nombre} tono={tonoDe(x.nombre)} />}</span>
+                <small>{x.marca}</small><b>{x.nombre}</b><em>{$(x.precio_detal)}</em>
+              </button>
+            ))}</div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -564,6 +724,84 @@ function Cajon({ onCerrar, lineas, unidades, umbral, mayor, total, ahorro, tasa,
           </form>
         )}
       </aside>
+    </div>
+  )
+}
+
+// Quiz de 3 preguntas: para quién, para qué ocasión y qué aroma. Recomienda 3 perfumes con stock.
+function Quiz({ cat, tasa, umbral, onCerrar, carro, cambiar, abrirFicha, setAviso }) {
+  const [paso, setPaso] = useState(0)
+  const [r, setR] = useState({ genero: null, ocasion: null, familia: null })
+  const preguntas = [
+    { k: 'genero', t: '¿Para quién es?', a: 'Elige una.', o: [['mujer', 'Para ella'], ['hombre', 'Para él'], ['unisex', 'Unisex', 'Sin distinción']] },
+    { k: 'ocasion', t: '¿Para qué ocasión lo quieres?', a: 'Elige una.', o: [['Salidas', 'Una salida con amigos', 'Fiestas, cenas, noche larga'], ['Día a día', 'Trabajo y día a día', 'Oficina, clases, calle'], ['Citas', 'Una cita', 'Que se note sin exagerar'], ['', 'Para mí, sin ocasión', 'Lo uso porque me gusta']] },
+    { k: 'familia', t: '¿Qué aroma te gusta?', a: 'Elige el que más te atraiga.', o: [['Dulce', 'Dulce y cremoso', 'Vainilla, frutas, caramelo'], ['Fresco', 'Fresco y limpio', 'Cítricos, notas marinas'], ['Amaderado', 'Amaderado o especiado', 'Madera, ámbar, canela'], ['Floral', 'Floral', 'Rosa, jazmín, peonía'], ['Gourmand', 'Gourmand', 'Café, cacao, praliné']] },
+  ]
+  const hecho = paso >= preguntas.length
+  const afines = { Dulce: ['Dulce', 'Gourmand'], Gourmand: ['Gourmand', 'Dulce'], Amaderado: ['Amaderado', 'Ámbar y especiado'], Fresco: ['Fresco'], Floral: ['Floral', 'Dulce'] }
+  const resultados = useMemo(() => {
+    if (!hecho) return []
+    return cat.filter((p) => p.stock > 0 && p.precio_detal != null).map((p) => {
+      let pts = 0
+      if (r.genero) pts += p.genero === r.genero ? 4 : p.genero === 'unisex' ? 2 : p.genero ? -6 : 0
+      if (r.ocasion) pts += tieneOcasion(p, r.ocasion) ? 2 : 0
+      if (r.familia) pts += p.familia === r.familia ? 4 : (afines[r.familia] || []).includes(p.familia) ? 2 : 0
+      return { p, pts: pts + Math.min(p.vendidos, 10) / 20 }
+    }).filter((x) => x.pts > 0).sort((a, b) => b.pts - a.pts).slice(0, 3)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hecho, cat, r])
+  const maxPts = (r.genero ? 4 : 0) + (r.ocasion ? 2 : 0) + (r.familia ? 4 : 0) || 1
+  const elegir = (k, v) => { setR({ ...r, [k]: v }); setPaso(paso + 1) }
+
+  useEffect(() => {
+    const k = (e) => e.key === 'Escape' && onCerrar()
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
+  }, [onCerrar])
+
+  const q = preguntas[paso]
+  return (
+    <div className="t-cortina centro" onClick={onCerrar}>
+      <div className="t-modal t-quiz" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Encuentra tu perfume">
+        <button className="t-cerrar" onClick={onCerrar} aria-label="Cerrar quiz">×</button>
+        {!hecho ? (
+          <>
+            <div className="t-quiz-prog" aria-hidden="true">{preguntas.map((_, i) => <i key={i} className={i <= paso ? 'on' : ''} />)}</div>
+            <small className="t-quiz-paso">Pregunta {paso + 1} de {preguntas.length}</small>
+            <h2>{q.t}</h2>
+            <p className="t-quiz-ayuda">{q.a}</p>
+            <div className="t-quiz-ops">
+              {q.o.map(([v, n, d]) => (
+                <button type="button" key={v || 'ninguna'} className={r[q.k] === v ? 'on' : ''} onClick={() => elegir(q.k, v)}><b>{n}</b>{d && <small>{d}</small>}</button>
+              ))}
+            </div>
+            {paso > 0 && <button type="button" className="t-quiz-atras" onClick={() => setPaso(paso - 1)}>Atrás</button>}
+          </>
+        ) : (
+          <>
+            <h2>{resultados.length ? 'Tus perfumes ideales' : 'Por ahora no tenemos uno exacto'}</h2>
+            <p className="t-quiz-ayuda">{resultados.length ? 'Los que mejor encajan con tus respuestas y están disponibles.' : 'Mira todo el catálogo o escríbenos y te ayudamos.'}</p>
+            <div className="t-quiz-res">
+              {resultados.map(({ p, pts }, i) => (
+                <article key={p.id} className={i === 0 ? 'mejor' : ''}>
+                  {i === 0 && <span className="t-quiz-mejor">Tu mejor opción · {Math.min(99, Math.round(60 + (pts / maxPts) * 39))}% de afinidad</span>}
+                  <div className="t-quiz-fila">
+                    <span className="t-quiz-foto" style={{ background: tonoDe(p.nombre).fondo }}>{p.foto_url ? <img src={p.foto_url} alt="" /> : <Botella nombre={p.nombre} tono={tonoDe(p.nombre)} />}</span>
+                    <div><small>{[p.marca, p.familia].filter(Boolean).join(' · ')}</small><h3>{p.nombre}</h3><b>{$(p.precio_detal)}</b>{tasa && <small> · {Bs(p.precio_detal, tasa.euro)}</small>}</div>
+                  </div>
+                  <div className="t-acciones">
+                    <button className="t-btn sec" onClick={() => { onCerrar(); abrirFicha(p) }}>Ver detalle</button>
+                    <button className="t-btn" onClick={() => { cambiar(p.id, 1); setAviso('Agregado: ' + p.nombre) }} disabled={(carro[p.id] || 0) >= p.stock}>Agregar</button>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className="t-acciones">
+              <button className="t-btn sec" onClick={() => { setPaso(0); setR({ genero: null, ocasion: null, familia: null }) }}>Repetir quiz</button>
+              <a className="t-btn" href="#catalogo" onClick={onCerrar}>Ver catálogo</a>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
